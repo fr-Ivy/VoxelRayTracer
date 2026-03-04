@@ -44,9 +44,6 @@ Common/Assets/minecraft_assets_pack
 # debug information files
 *.dwo
 
-*.vcxproj*
-*.sln
-*.user
 *.opensdf
 *.sdf
 *.ipch

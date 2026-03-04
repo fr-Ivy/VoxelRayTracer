@@ -1,0 +1,208 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="renderer.cpp" />
+    <ClCompile Include="template\opencl.cpp">
+      <Filter>template</Filter>
+    </ClCompile>
+    <ClCompile Include="template\opengl.cpp">
+      <Filter>template</Filter>
+    </ClCompile>
+    <ClCompile Include="template\surface.cpp">
+      <Filter>template</Filter>
+    </ClCompile>
+    <ClCompile Include="template\template.cpp">
+      <Filter>template</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\imgui\imgui.cpp">
+      <Filter>template\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\imgui\imgui_demo.cpp">
+      <Filter>template\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\imgui\imgui_draw.cpp">
+      <Filter>template\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\imgui\imgui_impl_glfw.cpp">
+      <Filter>template\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\imgui\imgui_impl_opengl3.cpp">
+      <Filter>template\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\imgui\imgui_tables.cpp">
+      <Filter>template\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\imgui\imgui_widgets.cpp">
+      <Filter>template\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="template\tmpl8math.cpp">
+      <Filter>template</Filter>
+    </ClCompile>
+    <ClCompile Include="camera.cpp" />
+    <ClCompile Include="ray.cpp" />
+    <ClCompile Include="scene.cpp" />
+    <ClCompile Include="PointLight.cpp">
+      <Filter>Lighting\PointLight</Filter>
+    </ClCompile>
+    <ClCompile Include="Lighting.cpp">
+      <Filter>Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectionalLight.cpp">
+      <Filter>Lighting\DirectionalLight</Filter>
+    </ClCompile>
+    <ClCompile Include="SpotLight.cpp">
+      <Filter>Lighting\SpotLight</Filter>
+    </ClCompile>
+    <ClCompile Include="Material.cpp">
+      <Filter>Material</Filter>
+    </ClCompile>
+    <ClCompile Include="Reflective.cpp">
+      <Filter>Material\Reflective</Filter>
+    </ClCompile>
+    <ClCompile Include="Refractive.cpp">
+      <Filter>Material\Refractive</Filter>
+    </ClCompile>
+    <ClCompile Include="Dielectric.cpp">
+      <Filter>Material\Dielectric</Filter>
+    </ClCompile>
+    <ClCompile Include="Hybrid.cpp">
+      <Filter>Material\Hybrid</Filter>
+    </ClCompile>
+    <ClCompile Include="QuadLight.cpp">
+      <Filter>Lighting\AreaLight\QuadLight</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="renderer.h" />
+    <ClInclude Include="template\common.h">
+      <Filter>template</Filter>
+    </ClInclude>
+    <ClInclude Include="template\opencl.h">
+      <Filter>template</Filter>
+    </ClInclude>
+    <ClInclude Include="template\opengl.h">
+      <Filter>template</Filter>
+    </ClInclude>
+    <ClInclude Include="template\template.h">
+      <Filter>template</Filter>
+    </ClInclude>
+    <ClInclude Include="template\surface.h">
+      <Filter>template</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\imgui\imstb_truetype.h">
+      <Filter>template\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\imgui\imgui.h">
+      <Filter>template\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\imgui\imgui_impl_glfw.h">
+      <Filter>template\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\imgui\imgui_impl_opengl3.h">
+      <Filter>template\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\imgui\imgui_impl_opengl3_loader.h">
+      <Filter>template\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\imgui\imgui_internal.h">
+      <Filter>template\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\imgui\imstb_rectpack.h">
+      <Filter>template\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\imgui\imstb_textedit.h">
+      <Filter>template\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\imgui\imconfig.h">
+      <Filter>template\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="template\tmpl8math.h">
+      <Filter>template</Filter>
+    </ClInclude>
+    <ClInclude Include="ray.h" />
+    <ClInclude Include="camera.h" />
+    <ClInclude Include="scene.h" />
+    <ClInclude Include="PointLight.h">
+      <Filter>Lighting\PointLight</Filter>
+    </ClInclude>
+    <ClInclude Include="Lighting.h">
+      <Filter>Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectionalLight.h">
+      <Filter>Lighting\DirectionalLight</Filter>
+    </ClInclude>
+    <ClInclude Include="SpotLight.h">
+      <Filter>Lighting\SpotLight</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h">
+      <Filter>Material</Filter>
+    </ClInclude>
+    <ClInclude Include="Reflective.h">
+      <Filter>Material\Reflective</Filter>
+    </ClInclude>
+    <ClInclude Include="Refractive.h">
+      <Filter>Material\Refractive</Filter>
+    </ClInclude>
+    <ClInclude Include="Dielectric.h">
+      <Filter>Material\Dielectric</Filter>
+    </ClInclude>
+    <ClInclude Include="Hybrid.h">
+      <Filter>Material\Hybrid</Filter>
+    </ClInclude>
+    <ClInclude Include="QuadLight.h">
+      <Filter>Lighting\AreaLight\QuadLight</Filter>
+    </ClInclude>
+    <ClInclude Include="AreaLight.h">
+      <Filter>Lighting\AreaLight</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="template">
+      <UniqueIdentifier>{a7d6e3cb-bfcd-438d-979f-17df241a55b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="template\imgui">
+      <UniqueIdentifier>{b1e7f5d5-23d5-4fa2-8854-9a94fb160820}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Material">
+      <UniqueIdentifier>{7866d502-595e-4af0-9ecd-500d19071cac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Material\Reflective">
+      <UniqueIdentifier>{632b6e0e-0e57-4a0b-8615-70d371481fdc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Material\Refractive">
+      <UniqueIdentifier>{b6742d98-5683-4fd8-92fa-57a9e7175e1e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Material\Dielectric">
+      <UniqueIdentifier>{6a109cdf-cdfd-4b5f-8d49-e703729227fe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Material\Hybrid">
+      <UniqueIdentifier>{6e5fd0c5-c6f4-409e-b27d-4c7bf8d20e94}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lighting">
+      <UniqueIdentifier>{cda0ea2b-2b31-44ed-855d-643f12b6c066}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lighting\PointLight">
+      <UniqueIdentifier>{d9d9da9b-7569-4693-aff0-0d75f7c2e22a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lighting\DirectionalLight">
+      <UniqueIdentifier>{509f6598-d974-452a-8dca-e0eecc09b373}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lighting\SpotLight">
+      <UniqueIdentifier>{87e849f4-f336-46d9-b0da-ae8f1945aca7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lighting\AreaLight">
+      <UniqueIdentifier>{9cd405a5-f061-43a0-8a5b-a9aacdfd614b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lighting\AreaLight\QuadLight">
+      <UniqueIdentifier>{bb480493-3d17-4e60-9140-0f261789c563}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external">
+      <UniqueIdentifier>{26d37aa8-703d-4a53-9916-07fe1d50c90a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="template\LICENSE">
+      <Filter>template</Filter>
+    </None>
+  </ItemGroup>
+</Project>
