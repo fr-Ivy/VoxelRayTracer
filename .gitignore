@@ -34,7 +34,6 @@ Common/Assets/minecraft_assets_pack
 *.lai
 *.la
 *.a
-*.lib
 
 # Executables
 *.exe
