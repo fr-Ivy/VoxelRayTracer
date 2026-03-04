@@ -21,6 +21,8 @@ public:
 	uint voxel;					// payload of the intersected voxel
 	uint axis = 0;				// axis of last plane passed by the ray
 	bool inside = false;		// if true, ray started in voxel and t is at exit point
+	bool hitSphere;				// if true, ray hit a sphere
+	float3 N;					// ray normal
 private:
 	// min3 is used in normal reconstruction.
 	__inline static float3 min3( const float3& a, const float3& b )

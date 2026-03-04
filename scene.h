@@ -11,6 +11,13 @@
 // epsilon
 #define EPSILON		0.00001f
 
+struct Sphere
+{
+	float3 center;
+	float radius;
+	uint material;
+};
+
 namespace Tmpl8 {
 
 class Scene
@@ -24,11 +31,18 @@ public:
 		float3 tdelta;
 		float3 tmax;
 	};
+
+	std::vector<Sphere> spheres;
+
 	Scene();
 	void FindNearest( Ray& ray ) const;
 	bool IsOccluded( Ray& ray ) const;
 	void Set( const uint x, const uint y, const uint z, const uint v );
+	void SetSphere(float3 center, float radius, uint material);
 	unsigned int* grid; // voxel payload is 'unsigned int', interpretation of the bits is free!
+	//float3 sphereCenter;
+	//float sphereRadius;
+	//uint sphereMaterial;
 private:
 	bool Setup3DDDA( Ray& ray, DDAState& state ) const;
 };

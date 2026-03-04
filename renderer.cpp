@@ -26,12 +26,158 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 	}
 
 	scene.FindNearest(ray);
-	if (ray.voxel == 0) return float3(0, 1, 1); // or a fancy sky color
+	if (ray.voxel == 0)
+	{
+		return SampleSky(ray.D);
+		//return float3(0, 1, 1); // or a fancy sky color
+	}
+
+	if (ray.hitSphere)
+	{
+		float3 I = ray.IntersectionPoint();
+		float3 N = ray.GetNormal();
+		float3 lighting = Shade(ray, N, I);
+		float3 albedo = ray.GetAlbedo();
+		//return float3(1, 0, 0) + lighting;
+		if ((ray.voxel >> 24) == 1)
+		{
+			float3 reflected = reflectiveMat->calc(*this, ray, N, I, depth);
+			return reflected + lighting;
+		}
+
+		//dielectric material
+		else if ((ray.voxel >> 24) == 2)
+		{
+			float3 transmitted = dielectricMat->calc(*this, ray, N, I, depth);
+			return albedo * transmitted /** lighting*/;
+		}
+
+		//refractive material
+		else if ((ray.voxel >> 24) == 3)
+		{
+			float3 refracted = refractiveMat->calc(*this, ray, N, I, depth);
+			return albedo * refracted * lighting;
+		}
+
+		//hybrid material
+		else if ((ray.voxel >> 24) == 4)
+		{
+			float3 hybrid = hybridMat->calc(*this, ray, N, I, depth);
+			return (hybrid + lighting) * albedo;
+		}
+
+		//textured material
+		else if ((ray.voxel >> 24) == 5)
+		{
+			return Triplanar(I, N) * lighting;
+		}
+
+		//default
+		else
+		{
+			return albedo * lighting;
+			//return albedo * max(0.3f, dot(N, L));
+		}
+	}
 	float3 N = ray.GetNormal();
 	float3 I = ray.IntersectionPoint();
 	float3 albedo = ray.GetAlbedo();
+	//float3 color = float3(0);
+	//static const float3 L = normalize(float3(3, 2, 1));
+
+	//for (AreaLight* light : areaLights)
+	//{
+	//	//for area lights
+	//	float3 direction, emission;
+	//	float distance, pdf;
+
+	//	if (light->sample(I, float2(RandomFloat(), RandomFloat()), direction, emission, distance, pdf))
+	//	{
+	//		Ray shadow(I, direction, distance);
+	//		if (!scene.IsOccluded(shadow))
+	//		{
+	//			float surface = max(0.0f, dot(N, direction));
+	//			float3 lightNormal = light->getNormal();
+	//			float lightDistance = max(0.0f, -dot(direction, lightNormal));
+
+	//			float geometry = (surface * lightDistance) / (distance * distance);
+
+	//			color += emission * geometry / pdf;
+	//		}
+	//	}
+	//}
+
+	////for directional light
+	//float3 lightDirection = directionalLight->SampleDirection(I);
+
+	//if (!directionalLight->IsOccluded(I, scene))
+	//{
+	//	float3 lightRadiance = directionalLight->Radiance(I);
+	//	float cosa = max(0.0f, dot(N, lightDirection));
+	//	color += lightRadiance * cosa;
+	//}
+
+	////for point lights, spotlights
+	//for (Lighting* light : lights)
+	//{
+	//	//for other lights
+	//	lightDirection = light->SampleDirection(I);
+
+	//	if (!light->IsOccluded(I, scene))
+	//	{
+	//		float3 lightRadiance = light->Radiance(I);
+	//		float cosa = max(0.0f, dot(N, lightDirection));
+	//		color += lightRadiance * cosa;
+	//	}
+	//}
+
+	float3 lighting = Shade(ray, N, I);
+
+	//reflective material
+	if ((ray.voxel >> 24) == 1)
+	{
+		float3 reflected = reflectiveMat->calc(*this, ray, N, I, depth);
+		return reflected + lighting;
+	}
+
+	//dielectric material
+	else if ((ray.voxel >> 24) == 2)
+	{
+		float3 transmitted =  dielectricMat->calc(*this, ray, N, I, depth);
+		return albedo * transmitted /** lighting*/;
+	}
+
+	//refractive material
+	else if ((ray.voxel >> 24) == 3)
+	{
+		float3 refracted = refractiveMat->calc(*this, ray, N, I, depth);
+		return albedo * refracted * lighting;
+	}
+
+	//hybrid material
+	else if ((ray.voxel >> 24) == 4)
+	{
+		float3 hybrid = hybridMat->calc(*this, ray, N, I, depth);
+		return hybrid + lighting;
+	}
+
+	//textured material
+	else if ((ray.voxel >> 24) == 5)
+	{
+		return Triplanar(I, N) * lighting;
+	}
+
+	//default
+	else
+	{
+		return albedo * lighting;
+		//return albedo * max(0.3f, dot(N, L));
+	}
+}
+
+float3 Renderer::Shade(const Ray& ray, const float3& N, const float3& I)
+{
 	float3 color = float3(0);
-	static const float3 L = normalize(float3(3, 2, 1));
 
 	for (AreaLight* light : areaLights)
 	{
@@ -79,42 +225,7 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 		}
 	}
 
-	//reflective material
-	if ((ray.voxel >> 24) == 1)
-	{
-		return reflectiveMat->calc(*this, ray, N, I, depth);
-	}
-
-	//dielectric material
-	else if ((ray.voxel >> 24) == 2)
-	{
-		return albedo * dielectricMat->calc(*this, ray, N, I, depth) * color;
-	}
-
-	//refractive material
-	else if ((ray.voxel >> 24) == 3)
-	{
-		return albedo * refractiveMat->calc(*this, ray, N, I, depth) * color;
-	}
-
-	//hybrid material
-	else if ((ray.voxel >> 24) == 4)
-	{
-		return albedo * hybridMat->calc(*this, ray, N, I, depth);
-	}
-
-	//textured material
-	else if ((ray.voxel >> 24) == 5)
-	{
-		return Triplanar(I, N) * color;
-	}
-
-	//default
-	else
-	{
-		return albedo * color;
-		//return albedo * max(0.3f, dot(N, L));
-	}
+	return color;
 }
 
 // -----------------------------------------------------------
@@ -143,6 +254,7 @@ void Renderer::Init()
 	}
 
 	texture = new Surface("assets/earthmap.jpg");
+	skydome = new Surface("assets/skydome2_4K.hdr");
 
 	//lights.push_back(new SpotLight(float3(0.5f, 0.3f, 0.5f), float3(0, 0, -1), float3(1, 1, 1), 10, 13));
 
@@ -372,6 +484,29 @@ void Renderer::UI()
 		}
 		ImGui::EndTabBar();
 	}
+}
+
+float3 Renderer::SampleSky(float3& distance)
+{
+	float u = atan2f(distance.z, distance.x) * INV2PI + 0.5f;
+	float v = acosf(distance.y) * INVPI;
+
+	//v = 1.0f - v;
+
+	int iu = static_cast<int>(u * static_cast<float>(skydome->width));
+	int iv = static_cast<int>(v * static_cast<float>(skydome->height));
+
+	iu = max(0, min(iu, skydome->width - 1));
+	iv = max(0, min(iv, skydome->height - 1));
+
+	//uint skyIndex = (iu + iv * skydome->width) % (skydome->width * skydome->height);
+	//return 0.65f * float3(skydome->pixels[skyIndex * 3], skydome->pixels[skyIndex * 3 + 1], skydome->pixels[skyIndex * 3 + 2]);
+	uint p = skydome->pixels[iu + iv * skydome->width];
+
+	float r = ((p >> 16) & 255) / 255.0f;
+	float g = ((p >> 8) & 255) / 255.0f;
+	float b = (p & 255) / 255.0f;
+	return float3(r, g, b);
 }
 
 float3 Renderer::SampleTexture(float u, float v)

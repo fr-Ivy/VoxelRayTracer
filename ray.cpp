@@ -10,10 +10,16 @@ Ray::Ray( const float3 origin, const float3 direction, const float rayLength, co
 	uint ysign = *(uint*)&D.y >> 31;
 	uint zsign = *(uint*)&D.z >> 31;
 	Dsign = float3( (float)xsign, (float)ysign, (float)zsign ); // tnx Timon
+	hitSphere = false;
 }
 
 float3 Ray::GetNormal() const
 {
+	if (hitSphere)
+	{
+		return N;
+	}
+
 	// return the voxel normal at the nearest intersection
 	const float3 sign = Dsign * 2.0f - 1.0f;
 	return float3( axis == 0 ? sign.x : 0, axis == 1 ? sign.y : 0, axis == 2 ? sign.z : 0 );

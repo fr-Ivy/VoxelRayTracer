@@ -16,8 +16,10 @@ public:
 	// game flow methods
 	void Init();
 	float3 Trace( Ray& ray, int = 0, int = 0, int = 0 );
+	float3 Shade(const Ray& ray, const float3& N, const float3& I);
 	void Tick( float deltaTime );
 	void UI();
+	float3 SampleSky(float3& distance);
 	float3 SampleTexture(float u, float v);
 	float3 Triplanar(float3 I, float3 N);
 	void Shutdown() { /* nothing here for now */ }
@@ -58,6 +60,7 @@ public:
 	std::shared_ptr<Material> hybridMat;
 
 	Surface* texture;
+	Surface* skydome;
 
 	bool pinhole = false;
 	bool panini = false;

@@ -22,16 +22,41 @@ inline bool point_in_cube(const float3& pos)
 		pos.x <= 1 && pos.y <= 1 && pos.z <= 1;
 }
 
+inline float IntersectSphere(Ray& ray, const Sphere& sphere)
+{
+	float3 c = sphere.center - ray.O;
+	float t = dot(c, ray.D);
+	float3 q = c - t * ray.D;
+	float p2 = dot(q, q);
+	float radius2 = pow2f(sphere.radius);
+	if (p2 > radius2)
+	{
+		return 1e34f;
+	}
+
+	t -= sqrt(radius2 - p2);
+	if ((t > 0))
+	{
+		return t;
+	}
+	return 1e34f;
+}
+
 Scene::Scene()
 {
 	// allocate room for the world
 	grid = (uint*)MALLOC64(WORLDSIZE3 * sizeof(uint));
 	memset(grid, 0, WORLDSIZE3 * sizeof(uint));
-	// initialize the scene using Perlin noise, parallel over z
 
-	switch (5)
+	//sphereGrid = static_cast<uint*>(MALLOC64(WORLDSIZE3 * sizeof(uint)));
+	//memset(sphereGrid, 0, WORLDSIZE3 * sizeof(uint));
+
+	//std::vector<Sphere> spheres;
+
+	switch (3)
 	{
 	case 1:
+		// initialize the scene using Perlin noise, parallel over z
 		for (int z = 0; z < 128; z++)
 		{
 			const float fz = (float)z / 128;
@@ -101,7 +126,7 @@ Scene::Scene()
 				{
 					if (x > 253 || y < 2)
 					{
-						Set(x, y, z, x == 254 ? 0x04eeeeee : 0xeeeeee);
+						Set(x, y, z, x == 254 ? 0x01eeeeee : 0xeeeeee);
 					}
 
 					if (pow2f(static_cast<float>(x - 128)) + pow2f(static_cast<float>(y - 2 - 20)) + pow2f(static_cast<float>(z - 128)) <= pow2f(20))
@@ -109,18 +134,19 @@ Scene::Scene()
 						Set(x, y, z, 0xaaffaa);
 					}
 
-					if (pow2f(static_cast<float>(x - 80)) + pow2f(static_cast<float>(y - 2 - 20)) + pow2f(static_cast<float>(z - 80)) <= pow2f(20))
-					{
-						Set(x, y, z, 0xffffff);
-					}
-
 					if (x >= 150 && x < 170 && y >= 2 && y < 22 && z >= 100 && z < 120)
 					{
 						Set(x, y, z, 0x5ffffff);
 					}
+
+
 				}
 			}
 		}
+
+		SetSphere(float3(200, 25, 50), 25.0f, 0x0400ff00);
+		SetSphere(float3(25, 25, 25), 25.0f, 0xffffff);
+
 		break;
 	case 4:
 		//-----------------------AI GENERATED SCENE----------------------------------
@@ -163,6 +189,7 @@ Scene::Scene()
 		}
 		break;
 	case 5:
+#pragma omp parallel for schedule(dynamic)
 		for (int z = 0; z < 512; z++)
 		{
 			for (int y = 0; y < 512; y++)
@@ -171,7 +198,7 @@ Scene::Scene()
 				{
 					if (x < 2 || x > 509 || z > 509 || y < 2 || y > 509 || z < 2)
 					{
-						
+
 						Set(x, y, z, /*y == 1 || x == 1 || x == 510 || y == 510 || z == 510 ||*/ z == 1 ? 0x019999bb : 0xffffff);
 						//Set(x, y, z, 0xeeeeee);
 					}
@@ -186,37 +213,51 @@ Scene::Scene()
 				}
 			}
 		}
+	case 6:
+	{
+		//-----------------------AI GENERATED SCENE----------------------------------
+		const int sphereCount2 = 1000;
+		for (int i = 0; i < sphereCount2; i++)
+		{
+			// random center in voxel space
+			float x = rand() % 512;
+			float y = rand() % 512;
+			float z = rand() % 512;
+
+			// random radius between 5 and 20 voxels
+			float radiusVox = 5 + (rand() % 16);
+
+			// scale to 0–1 world space
+			float3 center = float3(x, y, z);
+			float radius = radiusVox;
+
+			// random NON-reflective color
+			// highest byte = material type
+			// 0x00 = diffuse
+			uint color =
+				(0x00 << 24) |                 // diffuse material
+				((rand() % 256) << 16) |       // R
+				((rand() % 256) << 8) |       // G
+				(rand() % 256);                // B
+
+			SetSphere(center, radius, color);
+		}
+
+		break;
+	}
 	default:
 		break;
 	}
-
-	//int y0 = 8, y1 = 12;
-
-//#pragma omp parallel for schedule(dynamic)
-//	for (int y = y0; y <= y1; y++)
-//	{
-//		for (int z = 0; z < 128; z++)
-//		{
-//			for (int x = 0; x < 128; x++)
-//			{
-//				Set(x, y, z, 0x888888);
-//			}
-//		}
-//	}
-
-//#pragma omp parallel for schedule(dynamic)
-//	for (int z = 0; z < 10; z++)
-//	{
-//		for (int x = 0; x < 10; x++)
-//		{
-//			Set(x + 64, 27, z + 64, 0xffffff);
-//		}
-//	}
 }
 
 void Scene::Set(const uint x, const uint y, const uint z, const uint v)
 {
 	grid[x + y * WORLDSIZE + z * WORLDSIZE2] = v;
+}
+
+void Scene::SetSphere(float3 center, float radius, uint material)
+{
+	spheres.push_back({ center / WORLDSIZE, radius / WORLDSIZE, material });
 }
 
 bool Scene::Setup3DDDA(Ray& ray, DDAState& state) const
@@ -249,10 +290,31 @@ void Scene::FindNearest(Ray& ray) const
 {
 	// nudge origin
 	ray.O += EPSILON * ray.D;
+
+	float bestTSphere = 1e34f;
+	int bestSphere = -1;
+
+	for (int i = 0; i < static_cast<int>(spheres.size()); i++)
+	{
+		float distance = IntersectSphere(ray, spheres[i]);
+		if (distance < bestTSphere)
+		{
+			bestTSphere = distance;
+			bestSphere = i;
+		}
+	}
+
 	// setup Amanatides & Woo grid traversal
 	DDAState s;
 	if (!Setup3DDDA(ray, s)) return;
 	uint cell, lastCell = 0, axis = ray.axis;
+
+	float sphereHit = 1e34f;
+	uint sphereHitMaterial = 0;
+	uint sphereHitAxis = 0;
+	uint sphereAxis = 0;
+	uint voxelHitMaterial = 0;
+
 	if (ray.inside)
 	{
 		// start stepping until we find an empty voxel
@@ -292,9 +354,25 @@ void Scene::FindNearest(Ray& ray) const
 			}
 		}
 		ray.voxel = cell;
+		voxelHitMaterial = ray.voxel;
 	}
+
+	if (bestSphere >= 0 && bestTSphere < s.t)
+	{
+		ray.t = bestTSphere;
+		ray.voxel = spheres[bestSphere].material;
+		ray.hitSphere = true;
+
+		float3 hitPos = ray.O + ray.t * ray.D;
+		ray.N = normalize(hitPos - spheres[bestSphere].center);
+
+		return;
+	}
+
 	ray.t = s.t;
 	ray.axis = axis;
+	ray.voxel = voxelHitMaterial;
+	ray.hitSphere = false;
 }
 
 bool Scene::IsOccluded(Ray& ray) const
@@ -302,6 +380,17 @@ bool Scene::IsOccluded(Ray& ray) const
 	// nudge origin
 	ray.O += EPSILON * ray.D;
 	ray.t -= EPSILON * 2.0f;
+
+	//setup shadows for the spheres
+	for (int i = 0; i < static_cast<int>(spheres.size()); i++)
+	{
+		float distance = IntersectSphere(ray, spheres[i]);
+		if (distance < ray.t)
+		{
+			return true;
+		}
+	}
+
 	// setup Amanatides & Woo grid traversal
 	DDAState s;
 	if (!Setup3DDDA(ray, s)) return false;
