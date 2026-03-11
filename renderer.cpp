@@ -1,5 +1,6 @@
 #include "template.h"
 
+#include "bvh.h"
 #include "Dielectric.h"
 #include "PointLight.h"
 #include "DirectionalLight.h"
@@ -10,6 +11,7 @@
 #include "Dielectric.h"
 #include "Hybrid.h"
 #include "stb_image.h"
+#include "RollBall.h"
 
 // -----------------------------------------------------------
 // Calculate light transport via a ray
@@ -32,53 +34,55 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 		//return float3(0, 1, 1); // or a fancy sky color
 	}
 
-	if (ray.hitSphere)
-	{
-		float3 I = ray.IntersectionPoint();
-		float3 N = ray.GetNormal();
-		float3 lighting = Shade(ray, N, I);
-		float3 albedo = ray.GetAlbedo();
-		//return float3(1, 0, 0) + lighting;
-		if ((ray.voxel >> 24) == 1)
-		{
-			float3 reflected = reflectiveMat->calc(*this, ray, N, I, depth);
-			return reflected + lighting;
-		}
+	//if (ray.hitSphere)
+	//{
+	//	float3 I = ray.IntersectionPoint();
+	//	float3 N = ray.GetNormal();
+	//	float3 lighting = Shade(N, I);
+	//	float3 albedo = ray.GetAlbedo();
+	//	//return float3(1, 0, 0) + lighting;
+	//	if ((ray.voxel >> 24) == 1)
+	//	{
+	//		float3 reflected = reflectiveMat->calc(*this, ray, N, I, depth);
+	//		return reflected + lighting;
+	//	}
 
-		//dielectric material
-		else if ((ray.voxel >> 24) == 2)
-		{
-			float3 transmitted = dielectricMat->calc(*this, ray, N, I, depth);
-			return albedo * transmitted /** lighting*/;
-		}
+	//	//dielectric material
+	//	else if ((ray.voxel >> 24) == 2)
+	//	{
+	//		float3 transmitted = dielectricMat->calc(*this, ray, N, I, depth);
+	//		return albedo * transmitted /** lighting*/;
+	//	}
 
-		//refractive material
-		else if ((ray.voxel >> 24) == 3)
-		{
-			float3 refracted = refractiveMat->calc(*this, ray, N, I, depth);
-			return albedo * refracted * lighting;
-		}
+	//	//refractive material
+	//	else if ((ray.voxel >> 24) == 3)
+	//	{
+	//		float3 refracted = refractiveMat->calc(*this, ray, N, I, depth);
+	//		return albedo * refracted * lighting;
+	//	}
 
-		//hybrid material
-		else if ((ray.voxel >> 24) == 4)
-		{
-			float3 hybrid = hybridMat->calc(*this, ray, N, I, depth);
-			return (hybrid + lighting) * albedo;
-		}
+	//	//hybrid material
+	//	else if ((ray.voxel >> 24) == 4)
+	//	{
+	//		float3 hybrid = hybridMat->calc(*this, ray, N, I, depth);
+	//		return (hybrid + lighting) * albedo;
+	//	}
 
-		//textured material
-		else if ((ray.voxel >> 24) == 5)
-		{
-			return Triplanar(I, N) * lighting;
-		}
+	//	//textured material
+	//	else if ((ray.voxel >> 24) == 5)
+	//	{
+	//		return Triplanar(I, N) * lighting;
+	//	}
 
-		//default
-		else
-		{
-			return albedo * lighting;
-			//return albedo * max(0.3f, dot(N, L));
-		}
-	}
+	//	//default
+	//	else
+	//	{
+	//		return albedo * lighting;
+	//		//return albedo * max(0.3f, dot(N, L));
+	//	}
+	//}
+
+
 	float3 N = ray.GetNormal();
 	float3 I = ray.IntersectionPoint();
 	float3 albedo = ray.GetAlbedo();
@@ -131,7 +135,7 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 	//	}
 	//}
 
-	float3 lighting = Shade(ray, N, I);
+	float3 lighting = Shade(N, I);
 
 	//reflective material
 	if ((ray.voxel >> 24) == 1)
@@ -143,7 +147,7 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 	//dielectric material
 	else if ((ray.voxel >> 24) == 2)
 	{
-		float3 transmitted =  dielectricMat->calc(*this, ray, N, I, depth);
+		float3 transmitted = dielectricMat->calc(*this, ray, N, I, depth);
 		return albedo * transmitted /** lighting*/;
 	}
 
@@ -171,11 +175,11 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 	else
 	{
 		return albedo * lighting;
-		//return albedo * max(0.3f, dot(N, L));
+		//return albedo * max(0.3f, dot(N, I));
 	}
 }
 
-float3 Renderer::Shade(const Ray& ray, const float3& N, const float3& I)
+float3 Renderer::Shade(const float3& N, const float3& I)
 {
 	float3 color = float3(0);
 
@@ -187,16 +191,19 @@ float3 Renderer::Shade(const Ray& ray, const float3& N, const float3& I)
 
 		if (light->sample(I, float2(RandomFloat(), RandomFloat()), direction, emission, distance, pdf))
 		{
-			Ray shadow(I, direction, distance);
-			if (!scene.IsOccluded(shadow))
+			if (dot(N, direction) > 0.0f)
 			{
-				float surface = max(0.0f, dot(N, direction));
-				float3 lightNormal = light->getNormal();
-				float lightDistance = max(0.0f, -dot(direction, lightNormal));
+				Ray shadow(I, direction, distance);
+				if (!scene.IsOccluded(shadow))
+				{
+					float surface = max(0.0f, dot(N, direction));
+					float3 lightNormal = light->getNormal();
+					float lightDistance = max(0.0f, -dot(direction, lightNormal));
 
-				float geometry = (surface * lightDistance) / (distance * distance);
+					float geometry = (surface * lightDistance) / (distance * distance);
 
-				color += emission * geometry / pdf;
+					color += emission * geometry / pdf;
+				}
 			}
 		}
 	}
@@ -204,11 +211,14 @@ float3 Renderer::Shade(const Ray& ray, const float3& N, const float3& I)
 	//for directional light
 	float3 lightDirection = directionalLight->SampleDirection(I);
 
-	if (!directionalLight->IsOccluded(I, scene))
+	if (dot(N, lightDirection) > 0.0f)
 	{
-		float3 lightRadiance = directionalLight->Radiance(I);
-		float cosa = max(0.0f, dot(N, lightDirection));
-		color += lightRadiance * cosa;
+		if (!directionalLight->IsOccluded(I, scene))
+		{
+			float3 lightRadiance = directionalLight->Radiance(I);
+			float cosa = max(0.0f, dot(N, lightDirection));
+			color += lightRadiance * cosa;
+		}
 	}
 
 	//for point lights, spotlights
@@ -217,11 +227,14 @@ float3 Renderer::Shade(const Ray& ray, const float3& N, const float3& I)
 		//for other lights
 		lightDirection = light->SampleDirection(I);
 
-		if (!light->IsOccluded(I, scene))
+		if (dot(N, lightDirection) > 0.0f)
 		{
-			float3 lightRadiance = light->Radiance(I);
-			float cosa = max(0.0f, dot(N, lightDirection));
-			color += lightRadiance * cosa;
+			if (!light->IsOccluded(I, scene))
+			{
+				float3 lightRadiance = light->Radiance(I);
+				float cosa = max(0.0f, dot(N, lightDirection));
+				color += lightRadiance * cosa;
+			}
 		}
 	}
 
@@ -246,7 +259,7 @@ void Renderer::Init()
 	//lights.push_back(new PointLight(float3(0.3f, 0.3f, 0.3f), float3(1, 0, 0)));
 	//lights.push_back(new PointLight(float3(0.5f, 0.7f, 1.0f), float3(0, 1, 0)));
 	//lights.push_back(new PointLight(float3(0.8f, 0.7f, 0.5f), float3(0, 0, 1)));
-	lights.push_back(new PointLight(float3(0.5f, 0.5f, 0.5f), float3(0, 1, 1)));
+	//lights.push_back(new PointLight(float3(0.5f, 0.5f, 0.5f), float3(0, 1, 1)));
 
 	for (int i = -15; i < 15; i++)
 	{
@@ -269,6 +282,15 @@ static int spp = 1;
 
 void Renderer::Tick(float deltaTime)
 {
+	RollBall rollBall;
+	for (int i = 0; i < scene.spheres.size(); i++)
+	{
+		rollBall.Move(deltaTime, scene.spheres[i], scene);
+		/*changedSetting = true;*/
+	}
+
+	scene.bvh->BuildBVH(scene);
+
 	//	Timer t;
 	//	// pixel loop: lines are executed as OpenMP parallel tasks (disabled in DEBUG)
 	//#pragma omp parallel for schedule(dynamic)
@@ -432,7 +454,7 @@ void Renderer::UI()
 	{
 		if (ImGui::BeginTabItem("general"))
 		{
-			changedSetting |= ImGui::SliderInt("depth", &maxDepth, 5, 100);
+			changedSetting |= ImGui::SliderInt("depth", &maxDepth, 1, 20);
 			ImGui::EndTabItem();
 		}
 
@@ -499,8 +521,6 @@ float3 Renderer::SampleSky(float3& distance)
 	iu = max(0, min(iu, skydome->width - 1));
 	iv = max(0, min(iv, skydome->height - 1));
 
-	//uint skyIndex = (iu + iv * skydome->width) % (skydome->width * skydome->height);
-	//return 0.65f * float3(skydome->pixels[skyIndex * 3], skydome->pixels[skyIndex * 3 + 1], skydome->pixels[skyIndex * 3 + 2]);
 	uint p = skydome->pixels[iu + iv * skydome->width];
 
 	float r = ((p >> 16) & 255) / 255.0f;

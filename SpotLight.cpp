@@ -19,14 +19,17 @@ float3 SpotLight::Radiance(const float3& point) const
 	float3 L = pos - point;
 	float distance = length(L);
 
+	// Calculate the angle between the direction of the light and the distance from the light to the intersection point
 	float spotFactor = dot(normalize(L), lightDir);
 
+	// Attenuation based on the inverse square formula.
 	float constant = 1.0f;
 	float linear = 0.15f;
 	float quadratic = 0.1f;
 
 	float attenuation = 1 / (constant + linear * distance + quadratic * (distance * distance));
 
+	// Calculate the spotlight effect
 	float inner = std::cos(innerCutOff * PI / 180);
 	float outer = std::cos(outerCutOff * PI / 180);
 

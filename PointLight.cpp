@@ -18,6 +18,7 @@ float3 PointLight::Radiance(const float3& point) const
 	float3 L = pos - point;
 	float distance = length(L);
 
+	// Attenuation based on the inverse square formula.
 	float constant = 1.0f;
 	float linear = 0.09f;
 	float quadratic = 0.032f;

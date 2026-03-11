@@ -41,6 +41,7 @@ Ray Camera::GetPrimaryRay( const float x, const float y )
 	const float3 P = topLeft + u * (topRight - topLeft) + v * (bottomLeft - topLeft);
 	// return Ray( camPos, normalize( P - camPos ) );
 
+	// get world space coordinates of the camera.
 	float3 front = normalize(camTarget - camPos);
 	float3 right = normalize(cross(float3(0, 1, 0), front));
 	float3 up = normalize(cross(front, right));
@@ -48,7 +49,7 @@ Ray Camera::GetPrimaryRay( const float x, const float y )
 	float3 dir = normalize(P - camPos);
 	float forward = dot(dir, front);
 
-
+	// calculate the focus point based on the camera mode
 	float3 focusPoint;
 	float2 tc;
 
@@ -69,9 +70,11 @@ Ray Camera::GetPrimaryRay( const float x, const float y )
 		focusPoint = camPos + worldDirFishEye * focusDistance;
 	}
 
+	// sample a random point on the lens
 	float2 randomInUnitSquare = float2(RandomFloat() * 2.0f - 1.0f, RandomFloat() * 2.0f - 1.0f);
 	float randomDistance = pow2f(randomInUnitSquare.x) + pow2f(randomInUnitSquare.y);
 
+	// keep sampling until we get a point inside the unit circle.
 	do
 	{
 		randomInUnitSquare = float2(RandomFloat() * 2.0f - 1.0f, RandomFloat() * 2.0f - 1.0f);
@@ -79,6 +82,7 @@ Ray Camera::GetPrimaryRay( const float x, const float y )
 		//std::cout << randomDistance << std::endl;
 	} while(randomDistance > 1);
 
+	// scale the random point to the aperture size and calculate the ray origin and direction
 	float3 lensOffset = (randomInUnitSquare.x * right + randomInUnitSquare.y * up) * apertureRadius;
 	//float3 lensOffset = float3(0);
 
@@ -96,6 +100,7 @@ Ray Camera::GetPrimaryRay( const float x, const float y )
 
 float3 Camera::PaniniProjection(float2& tc, float fov_degrees, float d)
 {
+	// based on https://www.shadertoy.com/view/Wt3fzB
 	float fov_radians = fov_degrees * (PI / 180);
 
 	float d2 = pow2f(d);
@@ -139,6 +144,7 @@ float3 Camera::PaniniProjection(float2& tc, float fov_degrees, float d)
 
 float3 Camera::FishEyeLens(float3 dir, float3 right, float3 up, float3 front, float fov_degrees)
 {
+	// calculate the fisheye direction based on cameras world coordinates.
 	float fov_radians = fov_degrees * (PI / 180);
 
 	//float distance = sqrt(pow2f(tc.x) + pow2f(tc.y));

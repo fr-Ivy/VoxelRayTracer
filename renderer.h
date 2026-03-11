@@ -16,7 +16,7 @@ public:
 	// game flow methods
 	void Init();
 	float3 Trace( Ray& ray, int = 0, int = 0, int = 0 );
-	float3 Shade(const Ray& ray, const float3& N, const float3& I);
+	float3 Shade(const float3& N, const float3& I);
 	void Tick( float deltaTime );
 	void UI();
 	float3 SampleSky(float3& distance);
@@ -47,7 +47,7 @@ public:
 	bool changedSetting = false;
 
 	float fps;
-	int maxDepth = 5;
+	int maxDepth = 3;
 	float specular = 1.0f;
 	float roughness = 0.02f;
 	DirectionalLight* directionalLight;

@@ -8,6 +8,7 @@ Hybrid::Hybrid(float specular, float roughness)
 
 float3 Hybrid::calc(Renderer& renderer, const Ray& ray, const float3 N, float3 I, const int depth) const
 {
+	// Calculate roughness and specular for the reflection ray.
 	float3 R = ray.D - float3(2) * N * dot(ray.D, N);
 
 	float3 randomInUnitSphere = float3(RandomFloat() * 2.0f - 1.0f, RandomFloat() * 2.0f - 1.0f, RandomFloat() * 2.0f - 1.0f);

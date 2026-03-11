@@ -2,6 +2,8 @@
 
 #include <set>
 
+#include "bvh.h"
+
 inline float intersect_cube(Ray& ray)
 {
 	// branchless slab method by Tavian
@@ -22,38 +24,22 @@ inline bool point_in_cube(const float3& pos)
 		pos.x <= 1 && pos.y <= 1 && pos.z <= 1;
 }
 
-inline float IntersectSphere(Ray& ray, const Sphere& sphere)
-{
-	float3 c = sphere.center - ray.O;
-	float t = dot(c, ray.D);
-	float3 q = c - t * ray.D;
-	float p2 = dot(q, q);
-	float radius2 = pow2f(sphere.radius);
-	if (p2 > radius2)
-	{
-		return 1e34f;
-	}
 
-	t -= sqrt(radius2 - p2);
-	if ((t > 0))
-	{
-		return t;
-	}
-	return 1e34f;
-}
+
 
 Scene::Scene()
 {
 	// allocate room for the world
 	grid = (uint*)MALLOC64(WORLDSIZE3 * sizeof(uint));
 	memset(grid, 0, WORLDSIZE3 * sizeof(uint));
+	brickGrid = 0;
 
 	//sphereGrid = static_cast<uint*>(MALLOC64(WORLDSIZE3 * sizeof(uint)));
 	//memset(sphereGrid, 0, WORLDSIZE3 * sizeof(uint));
 
 	//std::vector<Sphere> spheres;
 
-	switch (3)
+	switch (2)
 	{
 	case 1:
 		// initialize the scene using Perlin noise, parallel over z
@@ -92,7 +78,7 @@ Scene::Scene()
 						}
 						else if (x > 55 && x < 75)
 						{
-							Set(x, y, z, 0xaaffaa);
+							Set(x, y, z, 0x02aaffaa);
 						}
 
 
@@ -213,6 +199,7 @@ Scene::Scene()
 				}
 			}
 		}
+		break;
 	case 6:
 	{
 		//-----------------------AI GENERATED SCENE----------------------------------
@@ -220,12 +207,12 @@ Scene::Scene()
 		for (int i = 0; i < sphereCount2; i++)
 		{
 			// random center in voxel space
-			float x = rand() % 512;
-			float y = rand() % 512;
-			float z = rand() % 512;
+			float x = static_cast<float>(rand() % 512);
+			float y = static_cast<float>(rand() % 512);
+			float z = static_cast<float>(rand() % 512);
 
 			// random radius between 5 and 20 voxels
-			float radiusVox = 5 + (rand() % 16);
+			float radiusVox = 1.0f + static_cast<float>(rand() % 16);
 
 			// scale to 0–1 world space
 			float3 center = float3(x, y, z);
@@ -245,14 +232,64 @@ Scene::Scene()
 
 		break;
 	}
+	case 7:
+		// initialize the scene using Perlin noise, parallel over z
+#pragma omp parallel for schedule(dynamic)
+		for (int z = 0; z < WORLDSIZE; z++)
+		{
+			const float fz = (float)z / WORLDSIZE;
+			for (int y = 0; y < WORLDSIZE; y++)
+			{
+				float fx = 0, fy = (float)y / WORLDSIZE;
+				for (int x = 0; x < WORLDSIZE; x++, fx += 1.0f / WORLDSIZE)
+				{
+					const float n = noise3D(fx, fy, fz);
+					uint8_t r = std::min(2 * y, 255);
+					uint8_t g = std::min(1 * y, 255);
+					uint8_t b = std::min(1 * y, 255);
+
+					uint32_t c = (r << 16) | (g << 8) | b;
+					Set(x, y, z, n > 0.09f ? c : 0);
+				}
+			}
+		}
+		break;
 	default:
 		break;
 	}
+
+	brickGrid = (uint8_t*)MALLOC64(BRICKGRID3 * sizeof(uint8_t));
+	BuildBrickGrid();
+	bvh = new BVH();
+	bvh->BuildBVH(*this);
+}
+
+Scene::~Scene()
+{
+	delete bvh;
 }
 
 void Scene::Set(const uint x, const uint y, const uint z, const uint v)
 {
+	const uint old = grid[x + y * WORLDSIZE + z * WORLDSIZE2];
 	grid[x + y * WORLDSIZE + z * WORLDSIZE2] = v;
+
+	if (!brickGrid || old == v)
+	{
+		return;
+	}
+	const uint brickX = x / BRICKSIZE;
+	const uint brickY = y / BRICKSIZE;
+	const uint brickZ = z / BRICKSIZE;
+
+	if (v != 0)
+	{
+		brickGrid[brickX + brickY * BRICKGRID + brickZ * BRICKGRID2] = 1;
+	}
+	else
+	{
+		UpdateBrick(brickX, brickY, brickZ);
+	}
 }
 
 void Scene::SetSphere(float3 center, float radius, uint material)
@@ -286,33 +323,103 @@ bool Scene::Setup3DDDA(Ray& ray, DDAState& state) const
 	return true;
 }
 
+void Scene::BuildBrickGrid()
+{
+	memset(brickGrid, 0, BRICKGRID3 * sizeof(uint8_t)); // makes sure that the whole grid starts empty
+	for (uint bz = 0; bz < BRICKGRID; bz++)
+	{
+		for (uint by = 0; by < BRICKGRID; by++)
+		{
+			for (uint bx = 0; bx < BRICKGRID; bx++)
+			{
+				uint occupied = 0;
+
+				const uint vx = bx * BRICKSIZE;
+				const uint vy = by * BRICKSIZE;
+				const uint vz = bz * BRICKSIZE;
+
+				//walks over voxels inside of the brick
+				for (uint lz = 0; lz < BRICKSIZE; lz++)
+				{
+					for (uint ly = 0; ly < BRICKSIZE; ly++)
+					{
+						for (uint lx = 0; lx < BRICKSIZE; lx++)
+						{
+							occupied |= grid[(vx + lx) + (vy + ly) * WORLDSIZE + (vz + lz) * WORLDSIZE2];
+						}
+					}
+				}
+				// if occupied is 1, at least one voxel was solid inside the brick
+				brickGrid[bx + by * BRICKGRID + bz * BRICKGRID2] = occupied ? 1 : 0;
+			}
+		}
+	}
+
+}
+
+void Scene::UpdateBrick(uint bx, uint by, uint bz)
+{
+	uint occupied = 0;
+	const uint vx = bx * BRICKSIZE;
+	const uint vy = by * BRICKSIZE;
+	const uint vz = bz * BRICKSIZE;
+
+	for (uint lz = 0; lz < BRICKSIZE && !occupied; lz++)
+	{
+		for (uint ly = 0; ly < BRICKSIZE && !occupied; ly++)
+		{
+			for (uint lx = 0; lx < BRICKSIZE && !occupied; lx++)
+			{
+				occupied |= grid[(vx + lx) + (vy + ly) * WORLDSIZE + (vz + lz) * WORLDSIZE2];
+				if (occupied) //exit if there is a voxel in the brick
+				{
+					break;
+				}
+			}
+		}
+	}
+	brickGrid[bx + by * BRICKGRID + bz * BRICKGRID2] = occupied ? 1 : 0;
+}
+
 void Scene::FindNearest(Ray& ray) const
 {
 	// nudge origin
 	ray.O += EPSILON * ray.D;
 
-	float bestTSphere = 1e34f;
-	int bestSphere = -1;
+	// check for sphere intersections using the BVH
+	bvh->IntersectBVH(ray, *this);
 
-	for (int i = 0; i < static_cast<int>(spheres.size()); i++)
-	{
-		float distance = IntersectSphere(ray, spheres[i]);
-		if (distance < bestTSphere)
-		{
-			bestTSphere = distance;
-			bestSphere = i;
-		}
-	}
+	// store sphere hit information before starting the voxel traversal.
+	float sphereT = ray.t;
+	bool sphereHit = ray.hitSphere;
+	uint sphereVoxel = ray.voxel;
+	float3 sphereN = ray.N;
+	ray.t = 1e34f;
+
+	//float bestTSphere = 1e34f;
+	//int bestSphere = -1;
+
+	//for (int i = 0; i < static_cast<int>(spheres.size()); i++)
+	//{
+	//	float distance = IntersectSphere(ray, spheres[i]);
+	//	if (distance < bestTSphere)
+	//	{
+	//		bestTSphere = distance;
+	//		bestSphere = i;
+	//	}
+	//}
+
+
 
 	// setup Amanatides & Woo grid traversal
 	DDAState s;
 	if (!Setup3DDDA(ray, s)) return;
 	uint cell, lastCell = 0, axis = ray.axis;
 
-	float sphereHit = 1e34f;
-	uint sphereHitMaterial = 0;
-	uint sphereHitAxis = 0;
-	uint sphereAxis = 0;
+	//float sphereHit = 1e34f;
+	//uint sphereHitMaterial = 0;
+	//uint sphereHitAxis = 0;
+	//uint sphereAxis = 0;
 	uint voxelHitMaterial = 0;
 
 	if (ray.inside)
@@ -335,7 +442,28 @@ void Scene::FindNearest(Ray& ray) const
 			}
 		}
 		ray.voxel = lastCell; // we store the voxel we just left
+		//ray.t = s.t;
+		//ray.axis = axis;
+		//return;
 	}
+
+	//DDAState b;
+	//b.step = s.step;
+	//b.tdelta = s.tdelta * static_cast<float>(BRICKSIZE);
+	//b.t = s.t;
+
+	//const float brickCell = 1.0f / BRICKGRID;
+	//const float3 posInBrickGrid = static_cast<float>(BRICKGRID) * (ray.O + (s.t + EPSILON) * ray.D);
+	//const float3 brickGridPlanes = (ceilf(posInBrickGrid) - ray.Dsign) * brickCell;
+	//const int3 BP = clamp(static_cast<int3>(posInBrickGrid), 0, BRICKGRID - 1);
+	//b.X = BP.x;
+	//b.Y = BP.y;
+	//b.Z = BP.z;
+	//b.tmax = (brickGridPlanes - ray.O) * ray.rD;
+
+	//float entryT = b.t;
+	//const float cellSize = 1.0f / WORLDSIZE;
+	//bool outOfBounds = false;
 	else
 	{
 		// start stepping until we find a filled voxel
@@ -357,23 +485,23 @@ void Scene::FindNearest(Ray& ray) const
 		voxelHitMaterial = ray.voxel;
 	}
 
-	if (bestSphere >= 0 && bestTSphere < s.t)
+	// check if a sphere was hit and if it's closer than a voxel hit, update the ray with sphere information.
+	if (sphereHit && sphereT < ray.t)
 	{
-		ray.t = bestTSphere;
-		ray.voxel = spheres[bestSphere].material;
+		ray.t = sphereT;
+		ray.voxel = sphereVoxel;
 		ray.hitSphere = true;
-
-		float3 hitPos = ray.O + ray.t * ray.D;
-		ray.N = normalize(hitPos - spheres[bestSphere].center);
-
+		ray.N = sphereN;
 		return;
 	}
 
+	// if a voxel was hit and it's closer then a sphere hit, update the ray with voxel information.
 	ray.t = s.t;
 	ray.axis = axis;
-	ray.voxel = voxelHitMaterial;
+	//ray.voxel = voxelHitMaterial;
 	ray.hitSphere = false;
 }
+
 
 bool Scene::IsOccluded(Ray& ray) const
 {
@@ -381,15 +509,27 @@ bool Scene::IsOccluded(Ray& ray) const
 	ray.O += EPSILON * ray.D;
 	ray.t -= EPSILON * 2.0f;
 
+	ray.hitSphere = false;
+
 	//setup shadows for the spheres
-	for (int i = 0; i < static_cast<int>(spheres.size()); i++)
+
+	if (!bvh->bvhNodes.empty())
 	{
-		float distance = IntersectSphere(ray, spheres[i]);
-		if (distance < ray.t)
-		{
-			return true;
-		}
+		bvh->IntersectBVH(ray, *this);
 	}
+	if (ray.hitSphere)
+	{
+		return true;
+	}
+
+	//for (int i = 0; i < static_cast<int>(spheres.size()); i++)
+	//{
+	//	float distance = IntersectSphere(ray, spheres[i]);
+	//	if (distance < ray.t)
+	//	{
+	//		return true;
+	//	}
+	//}
 
 	// setup Amanatides & Woo grid traversal
 	DDAState s;

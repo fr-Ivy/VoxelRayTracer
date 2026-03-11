@@ -3,6 +3,7 @@
 
 float3 Dielectric::calc(Renderer& renderer, const Ray& ray, const float3 N, float3 I, const int depth) const
 {
+	// Calculate refraction and reflection using Fresnel formulas
 	float n1 = index1, n2 = index2;
 
 	if (ray.inside)
