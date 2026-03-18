@@ -25,6 +25,7 @@ struct Sphere
 	float radius;
 	uint material;
 	float3 velocity;
+	float3 previousCenter;
 };
 
 namespace Tmpl8 {
@@ -45,7 +46,7 @@ public:
 
 	Scene();
 	~Scene();
-	void FindNearest( Ray& ray ) const;
+	void FindNearest( Ray& ray, bool skipBVH = false ) const;
 	bool IsOccluded( Ray& ray ) const;
 	void Set( const uint x, const uint y, const uint z, const uint v );
 	void SetSphere(float3 center, float radius, uint material);
@@ -54,6 +55,7 @@ public:
 	//float3 sphereCenter;
 	//float sphereRadius;
 	//uint sphereMaterial;
+	bool shadows = true;
 	BVH* bvh;
 private:
 	bool Setup3DDDA( Ray& ray, DDAState& state ) const;

@@ -122,6 +122,7 @@
   </ItemDefinitionGroup>
   <!-- END Custom section -->
   <ItemGroup>
+    <ClCompile Include="bvh.cpp" />
     <ClCompile Include="Dielectric.cpp" />
     <ClCompile Include="Hybrid.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -141,6 +142,7 @@
     <ClCompile Include="PointLight.cpp" />
     <ClCompile Include="Reflective.cpp" />
     <ClCompile Include="Refractive.cpp" />
+    <ClCompile Include="RollBall.cpp" />
     <ClCompile Include="SpotLight.cpp" />
     <ClCompile Include="template\opencl.cpp" />
     <ClCompile Include="template\opengl.cpp" />
@@ -152,9 +154,11 @@
     </ClCompile>
     <ClCompile Include="template\tmpl8math.cpp" />
     <ClCompile Include="renderer.cpp" />
+    <ClCompile Include="TLAS.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AreaLight.h" />
+    <ClInclude Include="bvh.h" />
     <ClInclude Include="Dielectric.h" />
     <ClInclude Include="Hybrid.h" />
     <ClInclude Include="Material.h" />
@@ -174,6 +178,7 @@
     <ClInclude Include="PointLight.h" />
     <ClInclude Include="Reflective.h" />
     <ClInclude Include="Refractive.h" />
+    <ClInclude Include="RollBall.h" />
     <ClInclude Include="SpotLight.h" />
     <ClInclude Include="template\common.h" />
     <ClInclude Include="template\opencl.h" />
@@ -183,6 +188,7 @@
     <ClInclude Include="template\surface.h" />
     <ClInclude Include="template\tmpl8math.h" />
     <ClInclude Include="renderer.h" />
+    <ClInclude Include="TLAS.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp" />

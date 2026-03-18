@@ -3,6 +3,7 @@
 #include "Lighting.h"
 #include "AreaLight.h"
 #include "DirectionalLight.h"
+#include "RollBall.h"
 //#include "Material.h"
 
 class Material;
@@ -43,8 +44,12 @@ public:
 	float3* history;		// for episode 5
 	Scene scene;
 	Camera camera;
+	RollBall rollBall;
 
 	bool changedSetting = false;
+	float cameraTime = 0.0f;
+	bool physics = false;
+	bool playAnimation = false;
 
 	float fps;
 	int maxDepth = 3;

@@ -36,38 +36,54 @@ Camera::~Camera()
 Ray Camera::GetPrimaryRay( const float x, const float y )
 {
 	// calculate pixel position on virtual screen plane
-	const float u = static_cast<float>(x) * (1.0f / SCRWIDTH);
-	const float v = static_cast<float>(y) * (1.0f / SCRHEIGHT);
+	float u = x / SCRWIDTH;
+	float v = y / SCRHEIGHT;
+
+	//float3 directionCamera = normalize(float3(u * aspect, -v, -1));
+
 	const float3 P = topLeft + u * (topRight - topLeft) + v * (bottomLeft - topLeft);
 	// return Ray( camPos, normalize( P - camPos ) );
 
 	// get world space coordinates of the camera.
-	float3 front = normalize(camTarget - camPos);
-	float3 right = normalize(cross(float3(0, 1, 0), front));
-	float3 up = normalize(cross(front, right));
+	float3 right = float3(cameraToWorld(0, 0), cameraToWorld(1, 0), cameraToWorld(2, 0));
+	float3 up = float3(cameraToWorld(0, 1), cameraToWorld(1, 1), cameraToWorld(2, 1));
+	float3 front = float3(cameraToWorld(0, 2), cameraToWorld(1, 2), cameraToWorld(2, 2));
+
+	//float3 front = normalize(camTarget - camPos);
+	//float3 right = normalize(cross(float3(0, 1, 0), front));
+	//float3 up = normalize(cross(front, right));
 
 	float3 dir = normalize(P - camPos);
-	float forward = dot(dir, front);
+	float3 directionWorld = normalize(dir.x * right + dir.y * up + dir.z * front);
+
+	float3 cameraWorldPos = float3(cameraToWorld(0, 3), cameraToWorld(1, 3), cameraToWorld(2, 3));
+
+	float3 finalDirection = dir;
+
+
+
+	//float forward = dot(dir, front);
 
 	// calculate the focus point based on the camera mode
-	float3 focusPoint;
-	float2 tc;
+	//float3 focusPoint;
+	//float2 tc;
 
 	switch (cameraMode)
 	{
 	case CAMERAMODE::PINHOLE:
-		focusPoint = camPos + dir * focusDistance;
 		break;
 	case CAMERAMODE::PANINI:
-		tc = float2(dot(dir, right) / forward, dot(dir, up) / forward);
+	{
+		float forward = dot(dir, front);
+
+		float2 tc = float2(dot(dir, right) / forward, dot(dir, up) / forward);
 		float3 panini = PaniniProjection(tc, fov, paniniStrength);
-		float3 worldDirPanini = panini.x * right + panini.y * up + panini.z * front;
-		focusPoint = camPos + worldDirPanini * focusDistance;
+		finalDirection = normalize(panini.x * right + panini.y * up + panini.z * front);
 		break;
+	}
 	case CAMERAMODE::FISHEYE:
 		float3 fisheye = FishEyeLens(dir, right, up, front, fov);
-		float3 worldDirFishEye = fisheye.x * right + fisheye.y * up + fisheye.z * front;
-		focusPoint = camPos + worldDirFishEye * focusDistance;
+		finalDirection = normalize(fisheye.x * right + fisheye.y * up + fisheye.z * front);
 	}
 
 	// sample a random point on the lens
@@ -86,8 +102,9 @@ Ray Camera::GetPrimaryRay( const float x, const float y )
 	float3 lensOffset = (randomInUnitSquare.x * right + randomInUnitSquare.y * up) * apertureRadius;
 	//float3 lensOffset = float3(0);
 
-	float3 rayOrigin = camPos + lensOffset;
-	float3 rayDir = focusPoint - rayOrigin;
+	float3 rayOrigin = cameraWorldPos + lensOffset;
+	float3 focusPoint = cameraWorldPos + finalDirection * focusDistance;
+	float3 rayDir = normalize(focusPoint - rayOrigin);
 
 	//return Ray(camPos, P - camPos);
 	return Ray(rayOrigin, rayDir);
@@ -187,5 +204,49 @@ bool Camera::HandleInput( const float t )
 	topRight = camPos + 2.0f * ahead + aspect * right + up;
 	bottomLeft = camPos + 2.0f * ahead - aspect * right - up;
 	if (!changed) return false;
+	LookAt();
 	return true;
 }
+
+void Camera::CatmullRomSplines(float3 p0, float3 p1, float3 p2, float3 p3, float t)
+{
+	float alpha = 0.5f;
+	float tension = 0.0f;
+
+	float t01 = pow(length(p1 - p0), alpha);
+	float t12 = pow(length(p2 - p1), alpha);
+	float t23 = pow(length(p3 - p2), alpha);
+
+	float3 m1 = (1.0f - tension) *
+		(p2 - p1 + t12 * ((p1 - p0) / t01 - (p2 - p0) / (t01 + t12)));
+	float3 m2 = (1.0f - tension) *
+		(p2 - p1 + t12 * ((p3 - p2) / t23 - (p3 - p1) / (t12 + t23)));
+
+	SEGMENT segment;
+	segment.a = 2.0f * (p1 - p2) + m1 + m2;
+	segment.b = -3.0f * (p1 - p2) - m1 - m1 - m2;
+	segment.c = m1;
+	segment.d = p1;
+
+	camPos = segment.a * t * t * t + segment.b * t * t + segment.c * t + segment.d;
+	//float3 tangent = normalize(segment.a * float3(3.0f) * t * t + segment.b * float3(2.0f) * t + segment.c);
+	camTarget = float3(0.5f, 0.3f, 0.5f);
+
+	LookAt();
+	
+}
+
+void Camera::LookAt()
+{
+	//float3 forward = normalize(camTarget - camPos);
+	//float3 right = normalize(cross(float3(0, 1, 0), forward));
+	//float3 up = normalize(cross(forward, right));
+
+	//float tx = -dot(right, camPos);
+	//float ty = -dot(up, camPos);
+	//float tz = dot(forward, camPos);
+
+	worldToCamera = mat4::LookAt(camPos, camTarget, float3(0, 1, 0));
+	cameraToWorld = worldToCamera.Inverted();
+}
+

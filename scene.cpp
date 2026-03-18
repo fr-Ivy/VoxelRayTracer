@@ -25,8 +25,6 @@ inline bool point_in_cube(const float3& pos)
 }
 
 
-
-
 Scene::Scene()
 {
 	// allocate room for the world
@@ -39,9 +37,10 @@ Scene::Scene()
 
 	//std::vector<Sphere> spheres;
 
-	switch (2)
+	switch (6)
 	{
 	case 1:
+	{
 		// initialize the scene using Perlin noise, parallel over z
 		for (int z = 0; z < 128; z++)
 		{
@@ -57,7 +56,9 @@ Scene::Scene()
 			}
 		}
 		break;
+	}
 	case 2:
+	{
 #pragma omp parallel for schedule(dynamic)
 		for (int z = 0; z < 128; z++)
 		{
@@ -102,7 +103,9 @@ Scene::Scene()
 			}
 		}
 		break;
+	}
 	case 3:
+	{
 #pragma omp parallel for schedule(dynamic)
 		for (int z = 0; z < 256; z++)
 		{
@@ -134,7 +137,9 @@ Scene::Scene()
 		SetSphere(float3(25, 25, 25), 25.0f, 0xffffff);
 
 		break;
+	}
 	case 4:
+	{
 		//-----------------------AI GENERATED SCENE----------------------------------
 #pragma omp parallel for schedule(dynamic)
 		for (int z = 0; z < 512; z++)
@@ -174,7 +179,9 @@ Scene::Scene()
 			}
 		}
 		break;
+	}
 	case 5:
+	{
 #pragma omp parallel for schedule(dynamic)
 		for (int z = 0; z < 512; z++)
 		{
@@ -200,19 +207,39 @@ Scene::Scene()
 			}
 		}
 		break;
+	}
 	case 6:
 	{
 		//-----------------------AI GENERATED SCENE----------------------------------
+
+		for (int z = 0; z < 512; z++)
+		{
+			for (int x = 0; x < 512; x++)
+			{
+				for (int y = 0; y < 10; y++)   // platform thickness
+				{
+					uint color =
+						(0x00 << 24) |   // diffuse
+						(180 << 16) |
+						(180 << 8) |
+						180;
+					Set(x, y, z, color);
+				}
+			}
+		}
+
+
 		const int sphereCount2 = 1000;
 		for (int i = 0; i < sphereCount2; i++)
 		{
 			// random center in voxel space
 			float x = static_cast<float>(rand() % 512);
-			float y = static_cast<float>(rand() % 512);
+			float y = 50.0f + static_cast<float>(rand() % 400);
 			float z = static_cast<float>(rand() % 512);
 
 			// random radius between 5 and 20 voxels
 			float radiusVox = 1.0f + static_cast<float>(rand() % 16);
+			//float radiusVox = 20.0f;
 
 			// scale to 0–1 world space
 			float3 center = float3(x, y, z);
@@ -229,10 +256,10 @@ Scene::Scene()
 
 			SetSphere(center, radius, color);
 		}
-
 		break;
 	}
 	case 7:
+	{
 		// initialize the scene using Perlin noise, parallel over z
 #pragma omp parallel for schedule(dynamic)
 		for (int z = 0; z < WORLDSIZE; z++)
@@ -254,6 +281,75 @@ Scene::Scene()
 			}
 		}
 		break;
+	}
+	case 8:
+	{
+		const int stepCount = 30;
+		const int stepHeight = 1;
+		const int stepDepth = 10;
+		const int stepWidth = 50;
+
+		const int baseX = 200;
+		const int baseZ = 200;
+
+		uint stepColor =
+			(0x00 << 24) |
+			(160 << 16) |
+			(160 << 8) |
+			160;
+
+		for (int i = 0; i < stepCount; i++)
+		{
+			int yStart = i * stepHeight;
+			int zStart = baseZ + i * stepDepth;
+
+			for (int y = yStart; y < yStart + stepHeight; y++)
+				for (int z = zStart; z < zStart + stepDepth; z++)
+					for (int x = baseX; x < baseX + stepWidth; x++)
+						Set(x, y, z, stepColor);
+		}
+
+		float3 ballCenter;
+		ballCenter.x = baseX + stepWidth / 2;
+		ballCenter.y = stepCount * stepHeight + 10;
+		ballCenter.z = baseZ + stepCount * stepDepth - 10;
+
+		float ballRadius = 12.0f;
+
+		uint ballColor =
+			(0x00 << 24) |
+			(255 << 16) |
+			(80 << 8) |
+			80;
+
+		SetSphere(ballCenter, ballRadius, ballColor);
+
+		uint wallColor =
+			(0x00 << 24) |
+			(120 << 16) |
+			(120 << 8) |
+			120;
+
+		int wallY = stepCount * stepHeight;
+		int wallZ = baseZ + stepCount * stepDepth;
+
+		for (int y = wallY; y < wallY + 40; y++)
+			for (int z = wallZ; z < wallZ + 5; z++)
+				for (int x = baseX; x < baseX + stepWidth; x++)
+					Set(x, y, z, wallColor);
+
+		for (int y = 0; y < wallY + 40; y++)
+			for (int z = baseZ; z < wallZ; z++)
+				for (int x = baseX - 2; x < baseX; x++)
+					Set(x, y, z, wallColor);
+
+		for (int y = 0; y < wallY + 40; y++)
+			for (int z = baseZ; z < wallZ; z++)
+				for (int x = baseX + stepWidth; x < baseX + stepWidth + 2; x++)
+					Set(x, y, z, wallColor);
+
+		break;
+	}
 	default:
 		break;
 	}
@@ -294,7 +390,13 @@ void Scene::Set(const uint x, const uint y, const uint z, const uint v)
 
 void Scene::SetSphere(float3 center, float radius, uint material)
 {
-	spheres.push_back({ center / WORLDSIZE, radius / WORLDSIZE, material });
+	Sphere s;
+	s.center = center / WORLDSIZE;
+	s.radius = radius / WORLDSIZE;
+	s.material = material;
+	s.velocity = float3(0);
+	s.previousCenter = s.center;
+	spheres.push_back(s);
 }
 
 bool Scene::Setup3DDDA(Ray& ray, DDAState& state) const
@@ -381,19 +483,23 @@ void Scene::UpdateBrick(uint bx, uint by, uint bz)
 	brickGrid[bx + by * BRICKGRID + bz * BRICKGRID2] = occupied ? 1 : 0;
 }
 
-void Scene::FindNearest(Ray& ray) const
+void Scene::FindNearest(Ray& ray, bool skipBVH) const
 {
 	// nudge origin
 	ray.O += EPSILON * ray.D;
 
-	// check for sphere intersections using the BVH
-	bvh->IntersectBVH(ray, *this);
+	if (!skipBVH)
+	{
+		// check for sphere intersections using the BVH
+		bvh->IntersectBVH(ray, *this);
+	}
 
 	// store sphere hit information before starting the voxel traversal.
 	float sphereT = ray.t;
 	bool sphereHit = ray.hitSphere;
 	uint sphereVoxel = ray.voxel;
 	float3 sphereN = ray.N;
+	
 	ray.t = 1e34f;
 
 	//float bestTSphere = 1e34f;
@@ -413,13 +519,23 @@ void Scene::FindNearest(Ray& ray) const
 
 	// setup Amanatides & Woo grid traversal
 	DDAState s;
-	if (!Setup3DDDA(ray, s)) return;
+	if (!Setup3DDDA(ray, s))
+	{
+		ray.t = sphereT;
+		ray.hitSphere = sphereHit;
+		ray.voxel = sphereVoxel;
+		ray.N = sphereN;
+		return;
+	}
 	uint cell, lastCell = 0, axis = ray.axis;
 
 	//float sphereHit = 1e34f;
 	//uint sphereHitMaterial = 0;
 	//uint sphereHitAxis = 0;
 	//uint sphereAxis = 0;
+
+	bool voxelHit = false;
+	float voxelT = 1e34f;
 	uint voxelHitMaterial = 0;
 
 	if (ray.inside)
@@ -441,49 +557,231 @@ void Scene::FindNearest(Ray& ray) const
 				else { s.t = s.tmax.z, s.Z += s.step.z, axis = 2; if (s.Z >= WORLDSIZE) break; s.tmax.z += s.tdelta.z; }
 			}
 		}
-		ray.voxel = lastCell; // we store the voxel we just left
-		//ray.t = s.t;
-		//ray.axis = axis;
-		//return;
+		voxelHit = lastCell != 0;
+		voxelT = s.t;
+		voxelHitMaterial = lastCell; // we store the voxel we just left
+		ray.t = s.t;
+		ray.axis = axis;
+		return;
 	}
 
-	//DDAState b;
-	//b.step = s.step;
-	//b.tdelta = s.tdelta * static_cast<float>(BRICKSIZE);
-	//b.t = s.t;
+	DDAState brickDDA;
+	brickDDA.step = s.step;
+	brickDDA.tdelta = s.tdelta * static_cast<float>(BRICKSIZE);
+	brickDDA.t = s.t;
 
-	//const float brickCell = 1.0f / BRICKGRID;
-	//const float3 posInBrickGrid = static_cast<float>(BRICKGRID) * (ray.O + (s.t + EPSILON) * ray.D);
-	//const float3 brickGridPlanes = (ceilf(posInBrickGrid) - ray.Dsign) * brickCell;
-	//const int3 BP = clamp(static_cast<int3>(posInBrickGrid), 0, BRICKGRID - 1);
-	//b.X = BP.x;
-	//b.Y = BP.y;
-	//b.Z = BP.z;
-	//b.tmax = (brickGridPlanes - ray.O) * ray.rD;
+	const float brickCell = 1.0f / BRICKGRID;
+	const float3 posInBrickGrid = static_cast<float>(BRICKGRID) * (ray.O + (s.t + EPSILON) * ray.D);
+	const float3 brickGridPlanes = (ceilf(posInBrickGrid) - ray.Dsign) * brickCell;
+	const int3 BP = clamp(static_cast<int3>(posInBrickGrid), 0, BRICKGRID - 1);
+	brickDDA.X = BP.x;
+	brickDDA.Y = BP.y;
+	brickDDA.Z = BP.z;
+	brickDDA.tmax = (brickGridPlanes - ray.O) * ray.rD;
 
-	//float entryT = b.t;
-	//const float cellSize = 1.0f / WORLDSIZE;
-	//bool outOfBounds = false;
-	else
+	float entryT = brickDDA.t;
+	const float cellSize = 1.0f / WORLDSIZE;
+	bool finishedTraversal = false;
+
+	do
 	{
-		// start stepping until we find a filled voxel
-		while (1)
+		//if (sphereHit && entryT > sphereT)
+		//{
+		//	break;
+		//}
+
+		if (brickGrid[brickDDA.X + brickDDA.Y * BRICKGRID + brickDDA.Z * BRICKGRID2])
 		{
-			cell = grid[s.X + s.Y * WORLDSIZE + s.Z * WORLDSIZE2];
-			if (cell) break; else if (s.tmax.x < s.tmax.y)
+			const float3 brickEntryPos = ray.O + (entryT + EPSILON) * ray.D;
+
+			const uint brickMinX = brickDDA.X * BRICKSIZE;
+			const uint brickMaxX = min((brickDDA.X + 1) * BRICKSIZE, static_cast<uint>(WORLDSIZE));
+			const uint brickMinY = brickDDA.Y * BRICKSIZE;
+			const uint brickMaxY = min((brickDDA.Y + 1) * BRICKSIZE, static_cast<uint>(WORLDSIZE));
+			const uint brickMinZ = brickDDA.Z * BRICKSIZE;
+			const uint brickMaxZ = min((brickDDA.Z + 1) * BRICKSIZE, static_cast<uint>(WORLDSIZE));
+
+			DDAState innerBrickDDA;
+			innerBrickDDA.step = s.step;
+			innerBrickDDA.tdelta = s.tdelta;
+			innerBrickDDA.t = entryT;
+
+			innerBrickDDA.X = clamp(static_cast<uint>(brickEntryPos.x * WORLDSIZE), brickMinX, brickMaxX - 1);
+			innerBrickDDA.Y = clamp(static_cast<uint>(brickEntryPos.y * WORLDSIZE), brickMinY, brickMaxY - 1);
+			innerBrickDDA.Z = clamp(static_cast<uint>(brickEntryPos.z * WORLDSIZE), brickMinZ, brickMaxZ - 1);
+
+			if (s.step.x > 0)
 			{
-				if (s.tmax.x < s.tmax.z) { s.t = s.tmax.x, s.X += s.step.x, axis = 0; if (s.X >= WORLDSIZE) break; s.tmax.x += s.tdelta.x; }
-				else { s.t = s.tmax.z, s.Z += s.step.z, axis = 2; if (s.Z >= WORLDSIZE) break; s.tmax.z += s.tdelta.z; }
+				innerBrickDDA.tmax.x = ((innerBrickDDA.X + 1.0f) * cellSize - ray.O.x) * ray.rD.x;
 			}
 			else
 			{
-				if (s.tmax.y < s.tmax.z) { s.t = s.tmax.y, s.Y += s.step.y, axis = 1; if (s.Y >= WORLDSIZE) break; s.tmax.y += s.tdelta.y; }
-				else { s.t = s.tmax.z, s.Z += s.step.z, axis = 2; if (s.Z >= WORLDSIZE) break; s.tmax.z += s.tdelta.z; }
+				innerBrickDDA.tmax.x = ((innerBrickDDA.X) * cellSize - ray.O.x) * ray.rD.x;
+			}
+			if (s.step.y > 0)
+			{
+				innerBrickDDA.tmax.y = ((innerBrickDDA.Y + 1.0f) * cellSize - ray.O.y) * ray.rD.y;
+			}
+			else
+			{
+				innerBrickDDA.tmax.y = ((innerBrickDDA.Y) * cellSize - ray.O.y) * ray.rD.y;
+			}
+			if (s.step.z > 0)
+			{
+				innerBrickDDA.tmax.z = ((innerBrickDDA.Z + 1.0f) * cellSize - ray.O.z) * ray.rD.z;
+			}
+			else
+			{
+				innerBrickDDA.tmax.z = ((innerBrickDDA.Z) * cellSize - ray.O.z) * ray.rD.z;
+			}
+
+			do
+			{
+				//if (sphereHit && innerBrickDDA.t > sphereT)
+				//{
+				//	finishedTraversal = true;
+				//	break;
+				//}
+				cell = grid[innerBrickDDA.X + innerBrickDDA.Y * WORLDSIZE + innerBrickDDA.Z * WORLDSIZE2];
+
+				if (cell)
+				{
+					ray.voxel = cell;
+					ray.t = innerBrickDDA.t;
+					ray.axis = axis;
+					finishedTraversal = true;
+					break;
+				}
+				if (innerBrickDDA.tmax.x < innerBrickDDA.tmax.y)
+				{
+					if (innerBrickDDA.tmax.x < innerBrickDDA.tmax.z)
+					{
+						innerBrickDDA.t = innerBrickDDA.tmax.x;
+						innerBrickDDA.X += innerBrickDDA.step.x;
+						axis = 0;
+						if (innerBrickDDA.X >= WORLDSIZE)
+						{
+							finishedTraversal = true;
+							break;
+						}
+
+						innerBrickDDA.tmax.x += innerBrickDDA.tdelta.x;
+					}
+					else
+					{
+						innerBrickDDA.t = innerBrickDDA.tmax.z;
+						innerBrickDDA.Z += innerBrickDDA.step.z;
+						axis = 2;
+						if (innerBrickDDA.Z >= WORLDSIZE)
+						{
+							finishedTraversal = true;
+							break;
+						}
+
+						innerBrickDDA.tmax.z += innerBrickDDA.tdelta.z;
+					}
+				}
+				else
+				{
+					if (innerBrickDDA.tmax.y < innerBrickDDA.tmax.z)
+					{
+						innerBrickDDA.t = innerBrickDDA.tmax.y;
+						innerBrickDDA.Y += innerBrickDDA.step.y;
+						axis = 1;
+						if (innerBrickDDA.Y >= WORLDSIZE)
+						{
+							finishedTraversal = true;
+							break;
+						}
+
+						innerBrickDDA.tmax.y += innerBrickDDA.tdelta.y;
+					}
+					else
+					{
+						innerBrickDDA.t = innerBrickDDA.tmax.z;
+						innerBrickDDA.Z += innerBrickDDA.step.z;
+						axis = 2;
+						if (innerBrickDDA.Z >= WORLDSIZE)
+						{
+							finishedTraversal = true;
+							break;
+						}
+
+						innerBrickDDA.tmax.z += innerBrickDDA.tdelta.z;
+					}
+				}
+
+			} while (!finishedTraversal &&
+				innerBrickDDA.X >= brickMinX && innerBrickDDA.X < brickMaxX &&
+				innerBrickDDA.Y >= brickMinY && innerBrickDDA.Y < brickMaxY &&
+				innerBrickDDA.Z >= brickMinZ && innerBrickDDA.Z < brickMaxZ);
+			if (finishedTraversal)
+			{
+				break;
 			}
 		}
-		ray.voxel = cell;
-		voxelHitMaterial = ray.voxel;
-	}
+
+		if (brickDDA.tmax.x < brickDDA.tmax.y)
+		{
+			if (brickDDA.tmax.x < brickDDA.tmax.z)
+			{
+				entryT = brickDDA.tmax.x;
+				brickDDA.t = brickDDA.tmax.x;
+				brickDDA.X += brickDDA.step.x;
+				axis = 0;
+				if (brickDDA.X >= BRICKGRID)
+				{
+					break;
+				}
+
+				brickDDA.tmax.x += brickDDA.tdelta.x;
+			}
+			else
+			{
+				entryT = brickDDA.tmax.z;
+				brickDDA.t = brickDDA.tmax.z;
+				brickDDA.Z += brickDDA.step.z;
+				axis = 2;
+				if (brickDDA.Z >= BRICKGRID)
+				{
+					break;
+				}
+
+				brickDDA.tmax.z += brickDDA.tdelta.z;
+			}
+		}
+		else
+		{
+			if (brickDDA.tmax.y < brickDDA.tmax.z)
+			{
+				entryT = brickDDA.tmax.y;
+				brickDDA.t = brickDDA.tmax.y;
+				brickDDA.Y += brickDDA.step.y;
+				axis = 1;
+				if (brickDDA.Y >= BRICKGRID)
+				{
+					break;
+				}
+
+				brickDDA.tmax.y += brickDDA.tdelta.y;
+			}
+			else
+			{
+				entryT = brickDDA.tmax.z;
+				brickDDA.t = brickDDA.tmax.z;
+				brickDDA.Z += brickDDA.step.z;
+				axis = 2;
+				if (brickDDA.Z >= BRICKGRID)
+				{
+					break;
+				}
+
+				brickDDA.tmax.z += brickDDA.tdelta.z;
+			}
+		}
+
+	} while (!finishedTraversal);
+
 
 	// check if a sphere was hit and if it's closer than a voxel hit, update the ray with sphere information.
 	if (sphereHit && sphereT < ray.t)
@@ -492,19 +790,25 @@ void Scene::FindNearest(Ray& ray) const
 		ray.voxel = sphereVoxel;
 		ray.hitSphere = true;
 		ray.N = sphereN;
-		return;
 	}
 
 	// if a voxel was hit and it's closer then a sphere hit, update the ray with voxel information.
-	ray.t = s.t;
-	ray.axis = axis;
-	//ray.voxel = voxelHitMaterial;
-	ray.hitSphere = false;
+	else
+	{
+		//ray.t = voxelT;
+		//ray.axis = axis;
+		//ray.voxel = voxelHitMaterial;
+		ray.hitSphere = false;
+	}
 }
 
 
 bool Scene::IsOccluded(Ray& ray) const
 {
+	if (!shadows)
+	{
+		return false;
+	}
 	// nudge origin
 	ray.O += EPSILON * ray.D;
 	ray.t -= EPSILON * 2.0f;

@@ -71,6 +71,15 @@
     <ClCompile Include="QuadLight.cpp">
       <Filter>Lighting\AreaLight\QuadLight</Filter>
     </ClCompile>
+    <ClCompile Include="bvh.cpp">
+      <Filter>performance_improver\BVH</Filter>
+    </ClCompile>
+    <ClCompile Include="RollBall.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="TLAS.cpp">
+      <Filter>performance_improver\TLAS</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="renderer.h" />
@@ -155,6 +164,15 @@
     <ClInclude Include="AreaLight.h">
       <Filter>Lighting\AreaLight</Filter>
     </ClInclude>
+    <ClInclude Include="bvh.h">
+      <Filter>performance_improver\BVH</Filter>
+    </ClInclude>
+    <ClInclude Include="RollBall.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="TLAS.h">
+      <Filter>performance_improver\TLAS</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template">
@@ -198,6 +216,18 @@
     </Filter>
     <Filter Include="external">
       <UniqueIdentifier>{26d37aa8-703d-4a53-9916-07fe1d50c90a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics">
+      <UniqueIdentifier>{cc00bb6b-5e47-4507-801a-fcf73daee089}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="performance_improver">
+      <UniqueIdentifier>{1e7912da-34f5-4155-9686-1052d8132969}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="performance_improver\BVH">
+      <UniqueIdentifier>{5ded2097-3701-4d75-a4d9-3a539506335b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="performance_improver\TLAS">
+      <UniqueIdentifier>{39d2a07b-9f3e-446d-8ca1-ec9e36b626ce}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

@@ -27,7 +27,9 @@ void BVH::BuildBVH(Scene& scene)
 	}
 
 	// resize so that it can take spheres and nodes
+	bvhNodes.clear();
 	bvhNodes.resize(sphereCount * 2 - 1);
+	sphereIndex.clear();
 	sphereIndex.resize(sphereCount);
 	for (int i = 0; i < sphereCount; i++)
 	{
@@ -102,7 +104,7 @@ void BVH::Subdivide(uint nodeIndex, const Scene& scene)
 		for (uint i = 0; i < node.sphereCount; i++)
 		{
 			const Sphere& sphere = scene.spheres[sphereIndex[node.leftFirst + i]];
-			int binIndex = min(BINS - 1, static_cast<int>((sphere.center[axis] - boundsMin) * scale));
+			int binIndex = min(BINS - 1, max(0, static_cast<int>((sphere.center[axis] - boundsMin) * scale)));
 			bins[binIndex].count++;
 			bins[binIndex].bounds.Grow(sphere.center - sphere.radius);
 			bins[binIndex].bounds.Grow(sphere.center + sphere.radius);
@@ -122,14 +124,20 @@ void BVH::Subdivide(uint nodeIndex, const Scene& scene)
 		{
 			leftSum += bins[i].count;
 			leftCount[i] = leftSum;
-			leftBox.Grow(bins[i].bounds.bmin);
-			leftBox.Grow(bins[i].bounds.bmax);
+			if (bins[i].count > 0)
+			{
+				leftBox.Grow(bins[i].bounds.bmin);
+				leftBox.Grow(bins[i].bounds.bmax);
+			}
 			leftArea[i] = leftBox.Area();
 
 			rightSum += bins[BINS - 1 - i].count;
 			rightCount[BINS - 2 - i] = rightSum;
-			rightBox.Grow(bins[BINS - 1 - i].bounds.bmin);
-			rightBox.Grow(bins[BINS - 1 - i].bounds.bmax);
+			if (bins[BINS - 1 - i].count > 0)
+			{
+				rightBox.Grow(bins[BINS - 1 - i].bounds.bmin);
+				rightBox.Grow(bins[BINS - 1 - i].bounds.bmax);
+			}
 			rightArea[BINS - 2 - i] = rightBox.Area();
 		}
 

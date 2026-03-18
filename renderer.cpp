@@ -269,7 +269,7 @@ void Renderer::Init()
 	texture = new Surface("assets/earthmap.jpg");
 	skydome = new Surface("assets/skydome2_4K.hdr");
 
-	//lights.push_back(new SpotLight(float3(0.5f, 0.3f, 0.5f), float3(0, 0, -1), float3(1, 1, 1), 10, 13));
+	//lights.push_back(new SpotLight(float3(0.5f, 0.1f, 1.0f), float3(0, -1, 0), float3(1, 1, 1), 10, 13));
 
 	//areaLights.push_back(new QuadLight(float3(0.5f, 0.2f, 0.5f), float3(0.3f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.3f), float3(1, 1, 1)));
 }
@@ -282,14 +282,50 @@ static int spp = 1;
 
 void Renderer::Tick(float deltaTime)
 {
-	RollBall rollBall;
-	for (int i = 0; i < scene.spheres.size(); i++)
+	if (playAnimation)
 	{
-		rollBall.Move(deltaTime, scene.spheres[i], scene);
-		/*changedSetting = true;*/
+		float cameraDuration = 8.0f;
+		cameraTime += (deltaTime / 1000.0f);
+		float time = cameraTime / cameraDuration;
+
+		if (time > 1.0f)
+		{
+			cameraTime = 0.0f;
+		}
+
+		const int pointsCount = 4;
+
+		float3 cameraPoints[4] =
+		{
+			float3(0.5f + 1.2f, 0.5f, 0.5f),
+			float3(0.5f, 0.5f, 0.5f + 1.2f),
+			float3(0.5f - 1.2f, 0.5f, 0.5f),
+			float3(0.5f, 0.5f, 0.5f - 1.2f)
+		};
+
+		int   segment = static_cast<int>(time * pointsCount);
+		float t = time * pointsCount - segment;
+
+		float3 p0 = cameraPoints[(segment - 1 + pointsCount) % pointsCount];
+		float3 p1 = cameraPoints[(segment + pointsCount) % pointsCount];
+		float3 p2 = cameraPoints[(segment + 1 + pointsCount) % pointsCount];
+		float3 p3 = cameraPoints[(segment + 2 + pointsCount) % pointsCount];
+
+		camera.CatmullRomSplines(p0, p1, p2, p3, t);
+		changedSetting = true;
 	}
 
-	scene.bvh->BuildBVH(scene);
+
+	if (physics)
+	{
+		for (int i = 0; i < scene.spheres.size(); i++)
+		{
+			rollBall.Move(deltaTime, scene.spheres[i], scene);
+			changedSetting = true;
+		}
+		scene.bvh->BuildBVH(scene);
+	}
+
 
 	//	Timer t;
 	//	// pixel loop: lines are executed as OpenMP parallel tasks (disabled in DEBUG)
@@ -368,6 +404,18 @@ void Renderer::UI()
 		ImGui::EndTabBar();
 	}
 
+	if (ImGui::BeginTabBar("General"))
+	{
+		if (ImGui::BeginTabItem("General"))
+		{
+			changedSetting |= ImGui::Checkbox("shadows", &scene.shadows);
+			changedSetting |= ImGui::Checkbox("physics", &physics);
+			changedSetting |= ImGui::Checkbox("play animation", &playAnimation);
+			ImGui::EndTabItem();
+		}
+		ImGui::EndTabBar();
+	}
+
 	if (ImGui::BeginTabBar("Camera"))
 	{
 		if (ImGui::BeginTabItem("general"))
@@ -397,7 +445,7 @@ void Renderer::UI()
 				changedSetting = true;
 			}
 
-			
+
 			if (ImGui::Checkbox("aperture", &camera.aperture))
 			{
 				if (!camera.aperture)

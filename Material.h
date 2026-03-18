@@ -7,3 +7,14 @@ private:
 
 };
 
+
+//pseudo 
+
+//
+//struct materials
+//{
+//	vector<Material> mats; mats[i].calc();
+//	vector<Dialectics> dialectricsMaterials;
+//	//hybrid
+//	//reflective
+//};
