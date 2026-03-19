@@ -12,13 +12,13 @@ class TLAS
 {
 public:
 	TLAS() = default;
-	TLAS(/*call the grid*/ int N);
+	TLAS(Voxel* voxel, int N);
 	void Build();
 	void Intersect(Ray& ray);
 
 private:
 	TLASNode* tlasNode = 0;
-	//call the grid
+	Voxel* blas;
 	uint nodesUsed, blasCount;
 
 };

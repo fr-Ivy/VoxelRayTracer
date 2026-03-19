@@ -155,6 +155,7 @@
     <ClCompile Include="template\tmpl8math.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="TLAS.cpp" />
+    <ClCompile Include="Voxel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AreaLight.h" />
@@ -189,6 +190,7 @@
     <ClInclude Include="template\tmpl8math.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="TLAS.h" />
+    <ClInclude Include="Voxel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp" />

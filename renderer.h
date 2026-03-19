@@ -52,7 +52,7 @@ public:
 	bool playAnimation = false;
 
 	float fps;
-	int maxDepth = 3;
+	int maxDepth = 1;
 	float specular = 1.0f;
 	float roughness = 0.02f;
 	DirectionalLight* directionalLight;

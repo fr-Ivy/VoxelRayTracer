@@ -2,6 +2,8 @@
 #include "bvh.h"
 #include "scene.h"
 
+
+
 void AABB::Grow(float3 p)
 {
 	// clamp p to avoid issues
@@ -245,8 +247,8 @@ void BVH::IntersectBVH(Ray& ray, const Scene& scene)
 			BVHNode* child1 = &bvhNodes[node->leftFirst];
 			BVHNode* child2 = &bvhNodes[node->leftFirst + 1];
 
-			float distance1 = IntersectAABB(ray, child1->aabbMin, child1->aabbMax);
-			float distance2 = IntersectAABB(ray, child2->aabbMin, child2->aabbMax);
+			float distance1, distance2;
+			IntersectAABB(ray, child1->aabbMin, child1->aabbMax, child2->aabbMin, child2->aabbMax, distance1, distance2);
 
 			if (distance1 > distance2)
 			{
@@ -273,7 +275,7 @@ void BVH::IntersectBVH(Ray& ray, const Scene& scene)
 	}
 }
 
-float BVH::IntersectAABB(const Ray& ray, const float3 bmin, const float3 bmax)
+float BVH::IntersectAABB2(const Ray& ray, const float3 bmin, const float3 bmax)
 {
 	// branchless slab method by Tavian
 	float tx1 = (bmin.x - ray.O.x) * ray.rD.x;

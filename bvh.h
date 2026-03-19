@@ -28,7 +28,7 @@ public:
 	void UpdateNodeBounds(uint nodeIndex, const Scene& scene);
 	void Subdivide(uint nodeIndex, const Scene& scene);
 	void IntersectBVH(Ray& ray, const Scene& scene);
-	float IntersectAABB(const Ray& ray, const float3 bmin, const float3 bmax);
+	float IntersectAABB2(const Ray& ray, const float3 bmin, const float3 bmax);
 	float EvaluateSAH(BVHNode& node, int axis, float pos, const Scene& scene);
 	std::vector<BVHNode> bvhNodes;
 	std::vector<uint> sphereIndex;

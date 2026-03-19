@@ -17,9 +17,6 @@
 // Calculate light transport via a ray
 // -----------------------------------------------------------
 
-//float3 pos(1, 1, 1);
-//float3 color(1, 1, 1);
-
 float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */)
 {
 	if (depth == maxDepth)
@@ -34,106 +31,9 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 		//return float3(0, 1, 1); // or a fancy sky color
 	}
 
-	//if (ray.hitSphere)
-	//{
-	//	float3 I = ray.IntersectionPoint();
-	//	float3 N = ray.GetNormal();
-	//	float3 lighting = Shade(N, I);
-	//	float3 albedo = ray.GetAlbedo();
-	//	//return float3(1, 0, 0) + lighting;
-	//	if ((ray.voxel >> 24) == 1)
-	//	{
-	//		float3 reflected = reflectiveMat->calc(*this, ray, N, I, depth);
-	//		return reflected + lighting;
-	//	}
-
-	//	//dielectric material
-	//	else if ((ray.voxel >> 24) == 2)
-	//	{
-	//		float3 transmitted = dielectricMat->calc(*this, ray, N, I, depth);
-	//		return albedo * transmitted /** lighting*/;
-	//	}
-
-	//	//refractive material
-	//	else if ((ray.voxel >> 24) == 3)
-	//	{
-	//		float3 refracted = refractiveMat->calc(*this, ray, N, I, depth);
-	//		return albedo * refracted * lighting;
-	//	}
-
-	//	//hybrid material
-	//	else if ((ray.voxel >> 24) == 4)
-	//	{
-	//		float3 hybrid = hybridMat->calc(*this, ray, N, I, depth);
-	//		return (hybrid + lighting) * albedo;
-	//	}
-
-	//	//textured material
-	//	else if ((ray.voxel >> 24) == 5)
-	//	{
-	//		return Triplanar(I, N) * lighting;
-	//	}
-
-	//	//default
-	//	else
-	//	{
-	//		return albedo * lighting;
-	//		//return albedo * max(0.3f, dot(N, L));
-	//	}
-	//}
-
-
 	float3 N = ray.GetNormal();
 	float3 I = ray.IntersectionPoint();
 	float3 albedo = ray.GetAlbedo();
-	//float3 color = float3(0);
-	//static const float3 L = normalize(float3(3, 2, 1));
-
-	//for (AreaLight* light : areaLights)
-	//{
-	//	//for area lights
-	//	float3 direction, emission;
-	//	float distance, pdf;
-
-	//	if (light->sample(I, float2(RandomFloat(), RandomFloat()), direction, emission, distance, pdf))
-	//	{
-	//		Ray shadow(I, direction, distance);
-	//		if (!scene.IsOccluded(shadow))
-	//		{
-	//			float surface = max(0.0f, dot(N, direction));
-	//			float3 lightNormal = light->getNormal();
-	//			float lightDistance = max(0.0f, -dot(direction, lightNormal));
-
-	//			float geometry = (surface * lightDistance) / (distance * distance);
-
-	//			color += emission * geometry / pdf;
-	//		}
-	//	}
-	//}
-
-	////for directional light
-	//float3 lightDirection = directionalLight->SampleDirection(I);
-
-	//if (!directionalLight->IsOccluded(I, scene))
-	//{
-	//	float3 lightRadiance = directionalLight->Radiance(I);
-	//	float cosa = max(0.0f, dot(N, lightDirection));
-	//	color += lightRadiance * cosa;
-	//}
-
-	////for point lights, spotlights
-	//for (Lighting* light : lights)
-	//{
-	//	//for other lights
-	//	lightDirection = light->SampleDirection(I);
-
-	//	if (!light->IsOccluded(I, scene))
-	//	{
-	//		float3 lightRadiance = light->Radiance(I);
-	//		float cosa = max(0.0f, dot(N, lightDirection));
-	//		color += lightRadiance * cosa;
-	//	}
-	//}
 
 	float3 lighting = Shade(N, I);
 

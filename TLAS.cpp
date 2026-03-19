@@ -1,10 +1,12 @@
 #include "template.h"
 #include "TLAS.h"
 
-TLAS::TLAS(int N)
+#include "Voxel.h"
+
+TLAS::TLAS(Voxel* voxel, int N)
 {
+	blas = voxel;
 	blasCount = N;
-	//call the grid
 	tlasNode = (TLASNode*)_aligned_malloc(sizeof(TLASNode) * 2 * N, 64);
 	nodesUsed = 2;
 }
@@ -35,7 +37,7 @@ void TLAS::Intersect(Ray& ray)
 	{
 		if (node->isLeaf)
 		{
-			//grid intersect
+			blas->Intersect(ray);
 			if (stackPtr == 0)
 			{
 				break;
@@ -46,7 +48,36 @@ void TLAS::Intersect(Ray& ray)
 			}
 			continue;
 		}
-		//TLASNode* child1 = &TLASNode[node->leftBLAS];
-		//TLASNode* child2 = &TLASNode[node->leftBLAS + 1];
+		TLASNode* child1 = &tlasNode[node->leftBLAS];
+		TLASNode* child2 = &tlasNode[node->leftBLAS + 1];
+
+		float distance1, distance2;
+		IntersectAABB(ray, child1->aabbMin, child1->aabbMax, child2->aabbMin, child2->aabbMax, distance1, distance2);
+
+		if (distance1 > distance2)
+		{
+			swap(distance1, distance2);
+			swap(child1, child2);
+		}
+
+		if (distance1 == 1e30f)
+		{
+			if (stackPtr == 0)
+			{
+				break;
+			}
+			else
+			{
+				node = stack[stackPtr--];
+			}
+		}
+		else
+		{
+			node = child1;
+			if (distance2 != 1e30f)
+			{
+				stack[stackPtr++] = child2;
+			}
+		}
 	}
 }
