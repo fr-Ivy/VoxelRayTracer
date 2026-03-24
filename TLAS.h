@@ -3,9 +3,10 @@
 struct TLASNode
 {
 	float3 aabbMin;
-	uint leftBLAS;
+	uint leftRight;
 	float3 aabbMax;
-	uint isLeaf;
+	uint BLAS;
+	bool IsLeaf();
 };
 
 class TLAS
@@ -15,6 +16,7 @@ public:
 	TLAS(Voxel* voxel, int N);
 	void Build();
 	void Intersect(Ray& ray);
+	int FindBestMatch(int* list, int N, int A);
 
 private:
 	TLASNode* tlasNode = 0;

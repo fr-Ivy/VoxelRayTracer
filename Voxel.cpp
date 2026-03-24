@@ -39,6 +39,23 @@ void Voxel::Set(const uint x, const uint y, const uint z, const uint v)
 	}
 }
 
+void Voxel::SetTransform(const mat4& t)
+{
+	transform = t;
+	invertedTransform = t.Inverted();
+
+	aabbMin = float3(1e34f);
+	aabbMax = float3(-1e34f);
+
+	for (int i = 0; i < 8; i++)
+	{
+		float3 corner = float3(i & 1 ? 1.0f : 0.0f, i & 2 ? 1.0f : 0.0f, i & 4 ? 1.0f : 0.0f);
+		float3 world = TransformPosition(corner, transform);
+		aabbMin = fminf(aabbMin, world);
+		aabbMax = fmaxf(aabbMax, world);
+	}
+}
+
 bool Voxel::Setup3DDDA(Ray& ray, DDAState& state) const
 {
 	// if ray is not inside the world: advance until it is
@@ -98,6 +115,37 @@ void Voxel::BuildBrickGrid()
 	}
 }
 
+void Voxel::LoadFromFile(const char* file)
+{
+	FILE* f = fopen(file, "rb");
+
+	int sizeX, sizeY, sizeZ;
+	fread(&sizeX, 4, 1, f);
+	fread(&sizeY, 4, 1, f);
+	fread(&sizeZ, 4, 1, f);
+
+	uint32_t palette[256];
+	fread(palette, 4, 256, f);
+
+	uint8_t vx, vy, vz, colorIndex;
+	while (fread(&vx, 1, 1, f) == 1)
+	{
+		fread(&vy, 1, 1, f);
+		fread(&vz, 1, 1, f);
+		fread(&colorIndex, 1, 1, f);
+
+		uint32_t rgba = palette[colorIndex];
+		uint8_t r = (rgba >> 0) & 0xff;
+		uint8_t g = (rgba >> 8) & 0xff;
+		uint8_t b = (rgba >> 16) & 0xff;
+		uint color = (r << 16) | (g << 8) | b;
+		if (color == 0) color = 1;
+
+		Set(vx, vz, vy, color);
+	}
+	fclose(f);
+}
+
 void Voxel::UpdateBrick(uint bx, uint by, uint bz)
 {
 	uint occupied = 0;
@@ -125,21 +173,26 @@ void Voxel::UpdateBrick(uint bx, uint by, uint bz)
 
 void Voxel::Intersect(Ray& ray)
 {
+	Ray localRay = ray;
+	localRay.O = TransformPosition(ray.O, invertedTransform);
+	localRay.D = TransformVector(ray.D, invertedTransform);
+	localRay.rD = float3(1.0f / localRay.D.x, 1.0f / localRay.D.y, 1.0f / localRay.D.z);
+	localRay.Dsign = float3(localRay.D.x < 0 ? 1.0f : 0.0f, localRay.D.y < 0 ? 1.0f : 0.0f, localRay.D.z < 0 ? 1.0f : 0.0f);
+
 	// setup Amanatides & Woo grid traversal
 	DDAState s;
-	if (!Setup3DDDA(ray, s))
+	if (!Setup3DDDA(localRay, s))
 	{
 		return;
 	}
-	uint cell, lastCell = 0, axis = ray.axis;
 
-
+	uint cell, lastCell = 0, axis = 0;
 
 	//bool voxelHit = false;
 	//float voxelT = 1e34f;
 	//uint voxelHitMaterial = 0;
 
-	if (ray.inside)
+	if (localRay.inside)
 	{
 		// start stepping until we find an empty voxel
 		while (1)
@@ -160,9 +213,10 @@ void Voxel::Intersect(Ray& ray)
 		}
 		//voxelHit = lastCell != 0;
 		//voxelT = s.t;
-		//voxelHitMaterial = lastCell; // we store the voxel we just left
+		ray.voxel = lastCell; // we store the voxel we just left
 		ray.t = s.t;
 		ray.axis = axis;
+		ray.inside = localRay.inside;
 		return;
 	}
 
@@ -172,13 +226,13 @@ void Voxel::Intersect(Ray& ray)
 	brickDDA.t = s.t;
 
 	const float brickCell = 1.0f / BRICKGRID;
-	const float3 posInBrickGrid = static_cast<float>(BRICKGRID) * (ray.O + (s.t + EPSILON) * ray.D);
-	const float3 brickGridPlanes = (ceilf(posInBrickGrid) - ray.Dsign) * brickCell;
+	const float3 posInBrickGrid = static_cast<float>(BRICKGRID) * (localRay.O + (s.t + EPSILON) * localRay.D);
+	const float3 brickGridPlanes = (ceilf(posInBrickGrid) - localRay.Dsign) * brickCell;
 	const int3 BP = clamp(static_cast<int3>(posInBrickGrid), 0, BRICKGRID - 1);
 	brickDDA.X = BP.x;
 	brickDDA.Y = BP.y;
 	brickDDA.Z = BP.z;
-	brickDDA.tmax = (brickGridPlanes - ray.O) * ray.rD;
+	brickDDA.tmax = (brickGridPlanes - localRay.O) * localRay.rD;
 
 	float entryT = brickDDA.t;
 	const float cellSize = 1.0f / WORLDSIZE;
@@ -193,7 +247,7 @@ void Voxel::Intersect(Ray& ray)
 
 		if (brickGrid[brickDDA.X + brickDDA.Y * BRICKGRID + brickDDA.Z * BRICKGRID2])
 		{
-			const float3 brickEntryPos = ray.O + (entryT + EPSILON) * ray.D;
+			const float3 brickEntryPos = localRay.O + (entryT + EPSILON) * localRay.D;
 
 			const uint brickMinX = brickDDA.X * BRICKSIZE;
 			const uint brickMaxX = min((brickDDA.X + 1) * BRICKSIZE, static_cast<uint>(WORLDSIZE));
@@ -213,27 +267,27 @@ void Voxel::Intersect(Ray& ray)
 
 			if (s.step.x > 0)
 			{
-				innerBrickDDA.tmax.x = ((innerBrickDDA.X + 1.0f) * cellSize - ray.O.x) * ray.rD.x;
+				innerBrickDDA.tmax.x = ((innerBrickDDA.X + 1.0f) * cellSize - localRay.O.x) * localRay.rD.x;
 			}
 			else
 			{
-				innerBrickDDA.tmax.x = ((innerBrickDDA.X) * cellSize - ray.O.x) * ray.rD.x;
+				innerBrickDDA.tmax.x = ((innerBrickDDA.X) * cellSize - localRay.O.x) * localRay.rD.x;
 			}
 			if (s.step.y > 0)
 			{
-				innerBrickDDA.tmax.y = ((innerBrickDDA.Y + 1.0f) * cellSize - ray.O.y) * ray.rD.y;
+				innerBrickDDA.tmax.y = ((innerBrickDDA.Y + 1.0f) * cellSize - localRay.O.y) * localRay.rD.y;
 			}
 			else
 			{
-				innerBrickDDA.tmax.y = ((innerBrickDDA.Y) * cellSize - ray.O.y) * ray.rD.y;
+				innerBrickDDA.tmax.y = ((innerBrickDDA.Y) * cellSize - localRay.O.y) * localRay.rD.y;
 			}
 			if (s.step.z > 0)
 			{
-				innerBrickDDA.tmax.z = ((innerBrickDDA.Z + 1.0f) * cellSize - ray.O.z) * ray.rD.z;
+				innerBrickDDA.tmax.z = ((innerBrickDDA.Z + 1.0f) * cellSize - localRay.O.z) * localRay.rD.z;
 			}
 			else
 			{
-				innerBrickDDA.tmax.z = ((innerBrickDDA.Z) * cellSize - ray.O.z) * ray.rD.z;
+				innerBrickDDA.tmax.z = ((innerBrickDDA.Z) * cellSize - localRay.O.z) * localRay.rD.z;
 			}
 
 			do
@@ -247,9 +301,9 @@ void Voxel::Intersect(Ray& ray)
 
 				if (cell)
 				{
-					ray.voxel = cell;
-					ray.t = innerBrickDDA.t;
-					ray.axis = axis;
+					localRay.voxel = cell;
+					localRay.t = innerBrickDDA.t;
+					localRay.axis = axis;
 					finishedTraversal = true;
 					break;
 				}
@@ -383,16 +437,31 @@ void Voxel::Intersect(Ray& ray)
 
 	} while (!finishedTraversal);
 
+	ray.t = localRay.t;
+	ray.voxel = localRay.voxel;
+	ray.axis = localRay.axis;
+	ray.inside = localRay.inside;
+	
+	const float3 localSign = localRay.Dsign * 2.0f - 1.0f;
+	float3 localNormal = float3(localRay.axis == 0 ? localSign.x : 0, localRay.axis == 1 ? localSign.y : 0, localRay.axis == 2 ? localSign.z : 0);
+
+	ray.N = normalize(TransformVector(localNormal, transform));
 }
 
 bool Voxel::IsOccluded(Ray& ray)
 {
+	Ray localRay = ray;
+	localRay.O = TransformPosition(ray.O, invertedTransform);
+	localRay.D = TransformVector(ray.D, invertedTransform);
+	localRay.rD = float3(1.0f / localRay.D.x, 1.0f / localRay.D.y, 1.0f / localRay.D.z);
+	localRay.Dsign = float3(localRay.D.x < 0 ? 1.0f : 0.0f, localRay.D.y < 0 ? 1.0f : 0.0f, localRay.D.z < 0 ? 1.0f : 0.0f);
+
 	DDAState brickDDA;
 
 	// setup Amanatides & Woo grid traversal
 	DDAState s;
 
-	if (!Setup3DDDA(ray, s)) return false;
+	if (!Setup3DDDA(localRay, s)) return false;
 
 	uint cell = 0;
 
@@ -401,13 +470,13 @@ bool Voxel::IsOccluded(Ray& ray)
 	brickDDA.t = s.t;
 
 	const float brickCell = 1.0f / BRICKGRID;
-	const float3 posInBrickGrid = static_cast<float>(BRICKGRID) * (ray.O + (s.t + EPSILON) * ray.D);
-	const float3 brickGridPlanes = (ceilf(posInBrickGrid) - ray.Dsign) * brickCell;
+	const float3 posInBrickGrid = static_cast<float>(BRICKGRID) * (localRay.O + (s.t + EPSILON) * localRay.D);
+	const float3 brickGridPlanes = (ceilf(posInBrickGrid) - localRay.Dsign) * brickCell;
 	const int3 BP = clamp(static_cast<int3>(posInBrickGrid), 0, BRICKGRID - 1);
 	brickDDA.X = BP.x;
 	brickDDA.Y = BP.y;
 	brickDDA.Z = BP.z;
-	brickDDA.tmax = (brickGridPlanes - ray.O) * ray.rD;
+	brickDDA.tmax = (brickGridPlanes - localRay.O) * localRay.rD;
 
 	float entryT = brickDDA.t;
 	const float cellSize = 1.0f / WORLDSIZE;
@@ -423,7 +492,7 @@ bool Voxel::IsOccluded(Ray& ray)
 
 		if (brickGrid[brickDDA.X + brickDDA.Y * BRICKGRID + brickDDA.Z * BRICKGRID2])
 		{
-			const float3 brickEntryPos = ray.O + (entryT + EPSILON) * ray.D;
+			const float3 brickEntryPos = localRay.O + (entryT + EPSILON) * localRay.D;
 
 			const uint brickMinX = brickDDA.X * BRICKSIZE;
 			const uint brickMaxX = min((brickDDA.X + 1) * BRICKSIZE, static_cast<uint>(WORLDSIZE));
@@ -443,27 +512,27 @@ bool Voxel::IsOccluded(Ray& ray)
 
 			if (s.step.x > 0)
 			{
-				innerBrickDDA.tmax.x = ((innerBrickDDA.X + 1.0f) * cellSize - ray.O.x) * ray.rD.x;
+				innerBrickDDA.tmax.x = ((innerBrickDDA.X + 1.0f) * cellSize - localRay.O.x) * localRay.rD.x;
 			}
 			else
 			{
-				innerBrickDDA.tmax.x = ((innerBrickDDA.X) * cellSize - ray.O.x) * ray.rD.x;
+				innerBrickDDA.tmax.x = ((innerBrickDDA.X) * cellSize - localRay.O.x) * localRay.rD.x;
 			}
 			if (s.step.y > 0)
 			{
-				innerBrickDDA.tmax.y = ((innerBrickDDA.Y + 1.0f) * cellSize - ray.O.y) * ray.rD.y;
+				innerBrickDDA.tmax.y = ((innerBrickDDA.Y + 1.0f) * cellSize - localRay.O.y) * localRay.rD.y;
 			}
 			else
 			{
-				innerBrickDDA.tmax.y = ((innerBrickDDA.Y) * cellSize - ray.O.y) * ray.rD.y;
+				innerBrickDDA.tmax.y = ((innerBrickDDA.Y) * cellSize - localRay.O.y) * localRay.rD.y;
 			}
 			if (s.step.z > 0)
 			{
-				innerBrickDDA.tmax.z = ((innerBrickDDA.Z + 1.0f) * cellSize - ray.O.z) * ray.rD.z;
+				innerBrickDDA.tmax.z = ((innerBrickDDA.Z + 1.0f) * cellSize - localRay.O.z) * localRay.rD.z;
 			}
 			else
 			{
-				innerBrickDDA.tmax.z = ((innerBrickDDA.Z) * cellSize - ray.O.z) * ray.rD.z;
+				innerBrickDDA.tmax.z = ((innerBrickDDA.Z) * cellSize - localRay.O.z) * localRay.rD.z;
 			}
 
 			do
@@ -599,7 +668,7 @@ bool Voxel::IsOccluded(Ray& ray)
 			}
 		}
 
-	} while (!finishedTraversal && brickDDA.t < ray.t);
+	} while (!finishedTraversal && brickDDA.t < localRay.t);
 
 	return false;
 }

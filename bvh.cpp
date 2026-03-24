@@ -183,7 +183,7 @@ void BVH::Subdivide(uint nodeIndex, const Scene& scene)
 	}
 
 	int leftCount = i - node.leftFirst;
-	if (leftCount == 0 || leftCount == node.sphereCount)
+	if (leftCount == 0 || leftCount == static_cast<int>(node.sphereCount))
 	{
 		return;
 	}

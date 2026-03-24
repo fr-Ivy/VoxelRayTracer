@@ -49,7 +49,8 @@ namespace Tmpl8 {
 
 		bool shadows = true;
 		BVH* bvh;
-		Voxel* voxelWorld;
+		Voxel* voxels;
+		int voxelCount;
 		TLAS* tlas;
 	private:
 

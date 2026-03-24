@@ -8,11 +8,6 @@ Camera::Camera()
 	{
 		fread( this, 1, sizeof( Camera ), f );
 		fclose( f );
-
-		//fov = 30.0f;
-		//paniniStrength = 1.0f;
-		//apertureRadius = 0.003f;
-		//focusDistance = 0.2f;
 	}
 	else
 	{
@@ -49,24 +44,12 @@ Ray Camera::GetPrimaryRay( const float x, const float y )
 	float3 up = float3(cameraToWorld(0, 1), cameraToWorld(1, 1), cameraToWorld(2, 1));
 	float3 front = float3(cameraToWorld(0, 2), cameraToWorld(1, 2), cameraToWorld(2, 2));
 
-	//float3 front = normalize(camTarget - camPos);
-	//float3 right = normalize(cross(float3(0, 1, 0), front));
-	//float3 up = normalize(cross(front, right));
-
 	float3 dir = normalize(P - camPos);
 	float3 directionWorld = normalize(dir.x * right + dir.y * up + dir.z * front);
 
 	float3 cameraWorldPos = float3(cameraToWorld(0, 3), cameraToWorld(1, 3), cameraToWorld(2, 3));
 
 	float3 finalDirection = dir;
-
-
-
-	//float forward = dot(dir, front);
-
-	// calculate the focus point based on the camera mode
-	//float3 focusPoint;
-	//float2 tc;
 
 	switch (cameraMode)
 	{
@@ -229,7 +212,6 @@ void Camera::CatmullRomSplines(float3 p0, float3 p1, float3 p2, float3 p3, float
 	segment.d = p1;
 
 	camPos = segment.a * t * t * t + segment.b * t * t + segment.c * t + segment.d;
-	//float3 tangent = normalize(segment.a * float3(3.0f) * t * t + segment.b * float3(2.0f) * t + segment.c);
 	camTarget = float3(0.5f, 0.3f, 0.5f);
 
 	LookAt();
@@ -238,14 +220,6 @@ void Camera::CatmullRomSplines(float3 p0, float3 p1, float3 p2, float3 p3, float
 
 void Camera::LookAt()
 {
-	//float3 forward = normalize(camTarget - camPos);
-	//float3 right = normalize(cross(float3(0, 1, 0), forward));
-	//float3 up = normalize(cross(forward, right));
-
-	//float tx = -dot(right, camPos);
-	//float ty = -dot(up, camPos);
-	//float tz = dot(forward, camPos);
-
 	worldToCamera = mat4::LookAt(camPos, camTarget, float3(0, 1, 0));
 	cameraToWorld = worldToCamera.Inverted();
 }

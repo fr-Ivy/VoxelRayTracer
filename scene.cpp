@@ -8,11 +8,7 @@
 
 Scene::Scene()
 {
-	voxelWorld = new Voxel();
-	tlas = new TLAS(voxelWorld, 2);
-	tlas->Build();
-
-	switch (6)
+	switch (10)
 	{
 	case 1:
 	{
@@ -26,7 +22,7 @@ Scene::Scene()
 				for (int x = 0; x < 128; x++, fx += 1.0f / 128)
 				{
 					const float n = noise3D(fx, fy, fz);
-					voxelWorld->Set(x, y, z, n > 0.09f ? 0x01020101 * y : 0);
+					voxels->Set(x, y, z, n > 0.09f ? 0x01020101 * y : 0);
 				}
 			}
 		}
@@ -34,6 +30,9 @@ Scene::Scene()
 	}
 	case 2:
 	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].SetTransform(mat4::Identity());
 #pragma omp parallel for schedule(dynamic)
 		for (int z = 0; z < 128; z++)
 		{
@@ -41,27 +40,27 @@ Scene::Scene()
 			{
 				for (int x = 0; x < 128; x++)
 				{
-					if (x < 2 || x > 125 || z > 125 || y < 2 || y > 125 /*|| z < 2*/)
+					if (x < 2 || x > 125 /*|| z > 125*/ || y < 2 || y > 125 /*|| z < 2*/)
 					{
 						//Set(x, y, z, y == 1 || x == 1 || x == 126 || y == 126 || z == 126 /*|| z == 1*/ ? 0x49999bb : 0xffffff);
-						voxelWorld->Set(x, y, z, 0xeeeeee);
+						voxels[0].Set(x, y, z, 0xeeeeee);
 					}
 					else if (y > 30 && y < 50 && z > 50 && z < 70 && x > 20)
 					{
 						if (x < 40)
 						{
-							voxelWorld->Set(x, y, z, 0xff7777 /*x == 39 || x == 21 || z == 51 || z == 69 || y == 31 || y == 49 ? 0x19999bb : 0xffffff*/);
+							voxels[0].Set(x, y, z, 0xff7777 /*x == 39 || x == 21 || z == 51 || z == 69 || y == 31 || y == 49 ? 0x19999bb : 0xffffff*/);
 						}
 						else if (x > 55 && x < 75)
 						{
-							voxelWorld->Set(x, y, z, 0x02aaffaa);
+							voxels[0].Set(x, y, z, 0x02aaffaa);
 						}
 
 
 
 						else if (x > 90 && x < 110)
 						{
-							voxelWorld->Set(x, y, z, 0x7777ff);
+							voxels[0].Set(x, y, z, 0x7777ff);
 						}
 					}
 
@@ -77,10 +76,16 @@ Scene::Scene()
 				}
 			}
 		}
+		voxels[0].BuildBrickGrid();
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
 		break;
 	}
 	case 3:
 	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)));
 #pragma omp parallel for schedule(dynamic)
 		for (int z = 0; z < 256; z++)
 		{
@@ -90,26 +95,30 @@ Scene::Scene()
 				{
 					if (x > 253 || y < 2)
 					{
-						voxelWorld->Set(x, y, z, x == 254 ? 0x01eeeeee : 0xeeeeee);
+						voxels[0].Set(x, y, z, x == 254 ? 0x01eeeeee : 0xeeeeee);
 					}
 
 					if (pow2f(static_cast<float>(x - 128)) + pow2f(static_cast<float>(y - 2 - 20)) + pow2f(static_cast<float>(z - 128)) <= pow2f(20))
 					{
-						voxelWorld->Set(x, y, z, 0xaaffaa);
+						voxels[0].Set(x, y, z, 0xaaffaa);
 					}
 
 					if (x >= 150 && x < 170 && y >= 2 && y < 22 && z >= 100 && z < 120)
 					{
-						voxelWorld->Set(x, y, z, 0x5ffffff);
+						voxels[0].Set(x, y, z, 0x5ffffff);
 					}
 
 
 				}
 			}
 		}
+		//voxels[0].BuildBrickGrid();
 
 		SetSphere(float3(200, 25, 50), 25.0f, 0x0400ff00);
 		SetSphere(float3(25, 25, 25), 25.0f, 0xffffff);
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
 
 		break;
 	}
@@ -125,7 +134,7 @@ Scene::Scene()
 				{
 					if (x > 509 || y < 4)
 					{
-						voxelWorld->Set(x, y, z, x == 510 ? 0x04eeeeee : 0xeeeeee);
+						voxels->Set(x, y, z, x == 510 ? 0x04eeeeee : 0xeeeeee);
 					}
 
 					const int sphereCount = 12;
@@ -147,7 +156,7 @@ Scene::Scene()
 						if (pow2f(dx) + pow2f(dy) + pow2f(dz) <= pow2f(radius))
 						{
 							uint32_t color = 0x880000 + (i * 0x000f0f);
-							voxelWorld->Set(x, y, z, color);
+							voxels->Set(x, y, z, color);
 						}
 					}
 				}
@@ -167,7 +176,7 @@ Scene::Scene()
 					if (x < 2 || x > 509 || z > 509 || y < 2 || y > 509 || z < 2)
 					{
 
-						voxelWorld->Set(x, y, z, /*y == 1 || x == 1 || x == 510 || y == 510 || z == 510 ||*/ z == 1 ? 0x019999bb : 0xffffff);
+						voxels->Set(x, y, z, /*y == 1 || x == 1 || x == 510 || y == 510 || z == 510 ||*/ z == 1 ? 0x019999bb : 0xffffff);
 						//Set(x, y, z, 0xeeeeee);
 					}
 
@@ -175,7 +184,7 @@ Scene::Scene()
 					{
 						if (x > 55 && x < 75)
 						{
-							voxelWorld->Set(x, y, z, 0x02ffffff);
+							voxels->Set(x, y, z, 0x02ffffff);
 						}
 					}
 				}
@@ -187,21 +196,22 @@ Scene::Scene()
 	{
 		//-----------------------AI GENERATED SCENE----------------------------------
 
-		for (int z = 0; z < 512; z++)
-		{
-			for (int x = 0; x < 512; x++)
-			{
-				for (int y = 0; y < 10; y++)   // platform thickness
-				{
-					uint color =
-						(0x00 << 24) |   // diffuse
-						(180 << 16) |
-						(180 << 8) |
-						180;
-					voxelWorld->Set(x, y, z, color);
-				}
-			}
-		}
+		//voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)));
+		//for (int z = 0; z < 512; z++)
+		//{
+		//	for (int x = 0; x < 512; x++)
+		//	{
+		//		for (int y = 0; y < 10; y++)   // platform thickness
+		//		{
+		//			uint color =
+		//				(0x00 << 24) |   // diffuse
+		//				(180 << 16) |
+		//				(180 << 8) |
+		//				180;
+		//			voxels[0].Set(x, y, z, color);
+		//		}
+		//	}
+		//}
 
 
 		const int sphereCount2 = 1000;
@@ -231,6 +241,9 @@ Scene::Scene()
 
 			SetSphere(center, radius, color);
 		}
+
+		//tlas = new TLAS(voxels, voxelCount);
+		//tlas->Build();
 		break;
 	}
 	case 7:
@@ -246,12 +259,12 @@ Scene::Scene()
 				for (int x = 0; x < WORLDSIZE; x++, fx += 1.0f / WORLDSIZE)
 				{
 					const float n = noise3D(fx, fy, fz);
-					uint8_t r = std::min(2 * y, 255);
-					uint8_t g = std::min(1 * y, 255);
-					uint8_t b = std::min(1 * y, 255);
+					uint8_t r = static_cast<uint8_t>(std::min(2 * y, 255));
+					uint8_t g = static_cast<uint8_t>(std::min(1 * y, 255));
+					uint8_t b = static_cast<uint8_t>(std::min(1 * y, 255));
 
 					uint32_t c = (r << 16) | (g << 8) | b;
-					voxelWorld->Set(x, y, z, n > 0.09f ? c : 0);
+					voxels->Set(x, y, z, n > 0.09f ? c : 0);
 				}
 			}
 		}
@@ -281,7 +294,7 @@ Scene::Scene()
 			for (int y = yStart; y < yStart + stepHeight; y++)
 				for (int z = zStart; z < zStart + stepDepth; z++)
 					for (int x = baseX; x < baseX + stepWidth; x++)
-						voxelWorld->Set(x, y, z, stepColor);
+						voxels->Set(x, y, z, stepColor);
 		}
 
 		float3 ballCenter;
@@ -311,18 +324,61 @@ Scene::Scene()
 		for (int y = wallY; y < wallY + 40; y++)
 			for (int z = wallZ; z < wallZ + 5; z++)
 				for (int x = baseX; x < baseX + stepWidth; x++)
-					voxelWorld->Set(x, y, z, wallColor);
+					voxels->Set(x, y, z, wallColor);
 
 		for (int y = 0; y < wallY + 40; y++)
 			for (int z = baseZ; z < wallZ; z++)
 				for (int x = baseX - 2; x < baseX; x++)
-					voxelWorld->Set(x, y, z, wallColor);
+					voxels->Set(x, y, z, wallColor);
 
 		for (int y = 0; y < wallY + 40; y++)
 			for (int z = baseZ; z < wallZ; z++)
 				for (int x = baseX + stepWidth; x < baseX + stepWidth + 2; x++)
-					voxelWorld->Set(x, y, z, wallColor);
+					voxels->Set(x, y, z, wallColor);
 
+		break;
+	}
+	case 9:
+	{
+		voxelCount = 2;
+		voxels = new Voxel[voxelCount];
+		// object 0: red cube on the left
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)));
+		for (int x = 100; x < 200; x++)
+			for (int y = 0; y < 100; y++)
+				for (int z = 100; z < 200; z++)
+					voxels[0].Set(x, y, z, 0xff0000);
+		voxels[0].BuildBrickGrid();
+
+		// object 1: blue cube on the right
+		voxels[1].SetTransform(mat4::Translate(float3(2, 0, 0)));
+		for (int x = 300; x < 400; x++)
+			for (int y = 0; y < 100; y++)
+				for (int z = 100; z < 200; z++)
+					voxels[1].Set(x, y, z, 0x0000ff);
+		voxels[1].BuildBrickGrid();
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 10:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)));
+		//voxels[1].SetTransform(mat4::Translate(float3(256.0f / WORLDSIZE, 0, 0)));
+
+		uint8_t roadX, roadY, roadZ;
+		uint color;
+		voxels[0].LoadFromFile("assets/binFiles/road.bin");
+
+		for (int i = 0; i < voxelCount; i++)
+		{
+			voxels[i].BuildBrickGrid();
+		}
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
 		break;
 	}
 	default:
@@ -330,7 +386,7 @@ Scene::Scene()
 	}
 
 
-	voxelWorld->BuildBrickGrid();
+	//voxels->BuildBrickGrid();
 	bvh = new BVH();
 	bvh->BuildBVH(*this);
 }
@@ -338,7 +394,7 @@ Scene::Scene()
 Scene::~Scene()
 {
 	delete bvh;
-	delete voxelWorld;
+	delete[] voxels;
 }
 
 void Scene::SetSphere(float3 center, float radius, uint material)
@@ -369,7 +425,7 @@ void Scene::FindNearest(Ray& ray, bool skipBVH) const
 	bool sphereHit = ray.hitSphere;
 	uint sphereVoxel = ray.voxel;
 	float3 sphereN = ray.N;
-	
+
 	ray.t = 1e34f;
 
 	//float bestTSphere = 1e34f;
@@ -390,7 +446,10 @@ void Scene::FindNearest(Ray& ray, bool skipBVH) const
 	//uint sphereHitAxis = 0;
 	//uint sphereAxis = 0;
 
-	tlas->Intersect(ray);
+	if (tlas)
+	{
+		tlas->Intersect(ray);
+	}
 
 	// check if a sphere was hit and if it's closer than a voxel hit, update the ray with sphere information.
 	if (sphereHit && sphereT < ray.t)
@@ -444,5 +503,9 @@ bool Scene::IsOccluded(Ray& ray) const
 	//	}
 	//}
 
-	return voxelWorld->IsOccluded(ray);
+	if (voxels)
+	{
+		return voxels->IsOccluded(ray);
+	}
+	return false;
 }
