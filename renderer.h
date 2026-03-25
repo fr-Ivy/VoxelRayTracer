@@ -49,7 +49,8 @@ public:
 	bool changedSetting = false;
 	float cameraTime = 0.0f;
 	bool physics = false;
-	bool playAnimation = false;
+	bool playCameraAnimation = false;
+	bool playObjectAnimation = false;
 
 	float fps;
 	int maxDepth = 1;

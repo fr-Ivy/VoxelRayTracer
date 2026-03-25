@@ -9,7 +9,7 @@
 #define WORLDSIZE3	(WORLDSIZE*WORLDSIZE*WORLDSIZE)
 
 //MLG
-#define BRICKSIZE 16 // power of 2. voxels per brick side
+#define BRICKSIZE 32 // power of 2. voxels per brick side
 #define BRICKGRID (WORLDSIZE / BRICKSIZE)
 #define BRICKGRID2 (BRICKGRID * BRICKGRID)
 #define BRICKGRID3 (BRICKGRID * BRICKGRID * BRICKGRID)
@@ -66,7 +66,7 @@ namespace Tmpl8 {
 		ty = min(ty1, ty2), tmin = max(tmin, ty), tmax = min(tmax, max(ty1, ty2));
 		const float tz1 = -ray.O.z * ray.rD.z, tz2 = (1 - ray.O.z) * ray.rD.z;
 		tz = min(tz1, tz2), tmin = max(tmin, tz), tmax = min(tmax, max(tz1, tz2));
-		if (tmin == tz) ray.axis = 2; else if (tmin == ty) ray.axis = 1;
+		if (tmin == tz) ray.axis = 2; else if (tmin == ty) ray.axis = 1; else ray.axis = 0;
 		return tmax >= tmin && tmin > 0 ? tmin : 1e34f;
 	}
 

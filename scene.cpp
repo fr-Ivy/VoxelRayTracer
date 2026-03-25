@@ -8,7 +8,7 @@
 
 Scene::Scene()
 {
-	switch (10)
+	switch (13)
 	{
 	case 1:
 	{
@@ -32,6 +32,7 @@ Scene::Scene()
 	{
 		voxelCount = 1;
 		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(512);
 		voxels[0].SetTransform(mat4::Identity());
 #pragma omp parallel for schedule(dynamic)
 		for (int z = 0; z < 128; z++)
@@ -234,7 +235,7 @@ Scene::Scene()
 			// highest byte = material type
 			// 0x00 = diffuse
 			uint color =
-				(0x00 << 24) |                 // diffuse material
+				(0x01 << 24) |                 // diffuse material
 				((rand() % 256) << 16) |       // R
 				((rand() % 256) << 8) |       // G
 				(rand() % 256);                // B
@@ -343,19 +344,33 @@ Scene::Scene()
 		voxelCount = 2;
 		voxels = new Voxel[voxelCount];
 		// object 0: red cube on the left
+		voxels[0].Resize(512);
 		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)));
 		for (int x = 100; x < 200; x++)
+		{
 			for (int y = 0; y < 100; y++)
+			{
 				for (int z = 100; z < 200; z++)
+				{
 					voxels[0].Set(x, y, z, 0xff0000);
+				}
+			}
+		}
 		voxels[0].BuildBrickGrid();
 
 		// object 1: blue cube on the right
+		voxels[1].Resize(512);
 		voxels[1].SetTransform(mat4::Translate(float3(2, 0, 0)));
 		for (int x = 300; x < 400; x++)
+		{
 			for (int y = 0; y < 100; y++)
+			{
 				for (int z = 100; z < 200; z++)
+				{
 					voxels[1].Set(x, y, z, 0x0000ff);
+				}
+			}
+		}
 		voxels[1].BuildBrickGrid();
 
 		tlas = new TLAS(voxels, voxelCount);
@@ -364,29 +379,173 @@ Scene::Scene()
 	}
 	case 10:
 	{
-		voxelCount = 1;
+		voxelCount = 2;
 		voxels = new Voxel[voxelCount];
 		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)));
+		voxels[1].SetTransform(mat4::Identity());
+		voxels[0].Resize(64);
+		voxels[1].Resize(64);
 		//voxels[1].SetTransform(mat4::Translate(float3(256.0f / WORLDSIZE, 0, 0)));
 
-		uint8_t roadX, roadY, roadZ;
-		uint color;
-		voxels[0].LoadFromFile("assets/binFiles/road.bin");
+		voxels[0].LoadFromFile("assets/binFiles/cat.bin");
 
 		for (int i = 0; i < voxelCount; i++)
 		{
 			voxels[i].BuildBrickGrid();
 		}
+
+		for (int z = 0; z < 64; z++)
+		{
+			for (int y = 0; y < 8; y++)
+			{
+				for (int x = 0; x < 8; x++)
+				{
+					voxels[1].Set(x, y, z, 0x00ff00);
+				}
+			}
+		}
+
+		float3 A = float3(0.2f, 0.5f, 0.2f);
+		float3 B = float3(0.8f, 0.7f, 0.2f);
+		float3 C = float3(0.8f, 0.3f, 0.8f);
+		float3 D = float3(0.2f, 0.6f, 0.8f);
+
+		voxels[1].AddSplineSegment(D, A, B, C, 2.0f);
+		voxels[1].AddSplineSegment(A, B, C, D, 1.5f);
+		voxels[1].AddSplineSegment(B, C, D, A, 1.5f);
+		voxels[1].AddSplineSegment(C, D, A, B, 1.5f);
+
+		voxels[1].SetTransform(mat4::Translate(A) * mat4::Scale(voxels[1].gridScale));
+
 		tlas = new TLAS(voxels, voxelCount);
 		tlas->Build();
 		break;
 	}
+	case 11:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(64);
+
+		for (int z = 0; z < 8; z++)
+		{
+			for (int y = 0; y < 8; y++)
+			{
+				for (int x = 0; x < 8; x++)
+				{
+					voxels[0].Set(x, y, z, 0x00ff00);
+				}
+			}
+		}
+		voxels[0].BuildBrickGrid();
+
+		float3 A = float3(0.2f, 0.5f, 0.2f);
+		float3 B = float3(0.8f, 0.7f, 0.2f);
+		float3 C = float3(0.8f, 0.3f, 0.8f);
+		float3 D = float3(0.2f, 0.6f, 0.8f);
+
+		voxels[0].AddSplineSegment(D, A, B, C, 2.0f);
+		voxels[0].AddSplineSegment(A, B, C, D, 1.5f);
+		voxels[0].AddSplineSegment(B, C, D, A, 1.5f);
+		voxels[0].AddSplineSegment(C, D, A, B, 1.5f);
+
+		voxels[0].SetTransform(mat4::Translate(A));
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 12:
+	{
+		voxelCount = 37;
+		voxels = new Voxel[voxelCount];
+
+		voxels[36].Resize(128);
+		voxels[36].LoadFromFile("assets/binFiles/cat.bin");
+		voxels[36].BuildBrickGrid();
+		voxels[36].SetTransform(mat4::Translate(0.3f, 0, 0) * mat4::Scale(voxels[36].gridScale));
+
+		SetSphere(float3(80, 180, 80), 10, 0x0100ff00);
+
+		float3 blockSize = float3(64, 16, 64);
+
+		for (int i = 0; i < 36; i++)
+		{
+			voxels[i].Resize(128);
+			for (int z = 0; z < blockSize.z; z++)
+			{
+				for (int y = 0; y < blockSize.y; y++)
+				{
+					for (int x = 0; x < blockSize.x; x++)
+					{
+						voxels[i].Set(x, y, z, 0x00ff00);
+					}
+				}
+			}
+			voxels[i].BuildBrickGrid();
+		}
+
+		//for (int y = 0; y < 5; y++)
+		//{
+		//	for (int x = 0; x < 5; x++)
+		//	{
+		//		int floorObjectIndex = y * 5 + x;
+		//		voxels[floorObjectIndex].SetTransform(mat4::Translate(float3(static_cast<float>(x) * 32.0f / WORLDSIZE,
+		//			0.0f, static_cast<float>(y) * 32.0f / WORLDSIZE)) * mat4::Scale(voxels[floorObjectIndex].gridScale));
+
+		//	}
+		//}
+
+		for (int z = 0; z < 6; z++)
+		{
+			for (int x = 0; x < 6; x++)
+			{
+				int index = z * 6 + x;
+				float3 A = float3(static_cast<float>(x) * blockSize.x / WORLDSIZE, 0.0f, static_cast<float>(z) * blockSize.z / WORLDSIZE);
+				float3 B = float3(static_cast<float>(x) * blockSize.x / WORLDSIZE, 0.2f, static_cast<float>(z) * blockSize.z / WORLDSIZE);
+
+				voxels[index].AddSplineSegment(B, A, B, A, 5.0f);
+				voxels[index].AddSplineSegment(A, B, A, B, 5.0f);
+				voxels[index].splineTime = static_cast<float>(x + z) * 0.4f;
+
+				voxels[index].SetTransform(mat4::Translate(A) * mat4::Scale(voxels[index].gridScale));
+			}
+		}
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 13:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(128);
+		for (int z = 0; z < 128; z++)
+		{
+			for (int y = 0; y < 128; y++)
+			{
+				for (int x = 0; x < 128; x++)
+				{
+					if ((x < 2 || (x > 32 && x < 35)) && y < 53 || 
+						(y < 2 || (y > 50 && y < 53)) && x < 35 || 
+						(z < 2 || z > 125) && x < 35 && y < 53)
+					{
+						voxels[0].Set(x, y, z, 0xff00ff);
+					}
+				}
+			}
+		}
+		voxels[0].BuildBrickGrid();
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+	}
+
 	default:
 		break;
 	}
 
-
-	//voxels->BuildBrickGrid();
 	bvh = new BVH();
 	bvh->BuildBVH(*this);
 }
@@ -493,15 +652,6 @@ bool Scene::IsOccluded(Ray& ray) const
 	{
 		return true;
 	}
-
-	//for (int i = 0; i < static_cast<int>(spheres.size()); i++)
-	//{
-	//	float distance = IntersectSphere(ray, spheres[i]);
-	//	if (distance < ray.t)
-	//	{
-	//		return true;
-	//	}
-	//}
 
 	if (voxels)
 	{

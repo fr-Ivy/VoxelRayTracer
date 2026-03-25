@@ -101,7 +101,7 @@ void TLAS::Intersect(Ray& ray)
 			}
 			else
 			{
-				node = stack[stackPtr--];
+				node = stack[--stackPtr];
 			}
 		}
 		else

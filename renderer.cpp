@@ -12,6 +12,8 @@
 #include "Hybrid.h"
 #include "stb_image.h"
 #include "RollBall.h"
+#include "Voxel.h"
+#include "TLAS.h"
 
 // -----------------------------------------------------------
 // Calculate light transport via a ray
@@ -81,7 +83,7 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 
 float3 Renderer::Shade(const float3& N, const float3& I)
 {
-	float3 color = float3(0);
+	float3 color = float3(0.15f);
 
 	for (AreaLight* light : areaLights)
 	{
@@ -156,7 +158,7 @@ void Renderer::Init()
 
 	directionalLight = new DirectionalLight(normalize(float3(0.2f, -0.5, 1)), float3(1, 1, 1));
 
-	//lights.push_back(new PointLight(float3(0.3f, 0.3f, 0.3f), float3(1, 0, 0)));
+	lights.push_back(new PointLight(float3(0.033f, 0.051f, 0.124f), float3(1, 0, 0)));
 	//lights.push_back(new PointLight(float3(0.5f, 0.7f, 1.0f), float3(0, 1, 0)));
 	//lights.push_back(new PointLight(float3(0.8f, 0.7f, 0.5f), float3(0, 0, 1)));
 	//lights.push_back(new PointLight(float3(0.5f, 0.5f, 0.5f), float3(0, 1, 1)));
@@ -182,7 +184,7 @@ static int spp = 1;
 
 void Renderer::Tick(float deltaTime)
 {
-	if (playAnimation)
+	if (playCameraAnimation)
 	{
 		float cameraDuration = 8.0f;
 		cameraTime += (deltaTime / 1000.0f);
@@ -212,6 +214,17 @@ void Renderer::Tick(float deltaTime)
 		float3 p3 = cameraPoints[(segment + 2 + pointsCount) % pointsCount];
 
 		camera.CatmullRomSplines(p0, p1, p2, p3, t);
+		changedSetting = true;
+	}
+
+	if (playObjectAnimation)
+	{
+		for (int i = 0; i < 36; i++)
+		{
+			scene.voxels[i].UpdateSpline(deltaTime / 1000.0f);
+
+		}
+		scene.tlas->Build();
 		changedSetting = true;
 	}
 
@@ -310,7 +323,8 @@ void Renderer::UI()
 		{
 			changedSetting |= ImGui::Checkbox("shadows", &scene.shadows);
 			changedSetting |= ImGui::Checkbox("physics", &physics);
-			changedSetting |= ImGui::Checkbox("play animation", &playAnimation);
+			changedSetting |= ImGui::Checkbox("play camera animation", &playCameraAnimation);
+			changedSetting |= ImGui::Checkbox("play object animation", &playObjectAnimation);
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
