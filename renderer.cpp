@@ -43,7 +43,7 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 	if ((ray.voxel >> 24) == 1)
 	{
 		float3 reflected = reflectiveMat->calc(*this, ray, N, I, depth);
-		return reflected + lighting;
+		return reflected;
 	}
 
 	//dielectric material
@@ -63,14 +63,20 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 	//hybrid material
 	else if ((ray.voxel >> 24) == 4)
 	{
-		float3 hybrid = hybridMat->calc(*this, ray, N, I, depth);
-		return hybrid + lighting;
+		std::shared_ptr<Hybrid> hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
+		float3 reflected = hybrid->calc(*this, ray, N, I, depth);
+		return (1.0f - hybrid->specular) * albedo * lighting + hybrid->specular * reflected;
 	}
 
 	//textured material
 	else if ((ray.voxel >> 24) == 5)
 	{
 		return Triplanar(I, N) * lighting;
+	}
+
+	else if ((ray.voxel >> 24) == 6)
+	{
+		return albedo;
 	}
 
 	//default
@@ -87,7 +93,7 @@ float3 Renderer::Shade(const float3& N, const float3& I)
 
 	for (AreaLight* light : areaLights)
 	{
-		//for area lights
+		// for area lights
 		float3 direction, emission;
 		float distance, pdf;
 
@@ -110,7 +116,7 @@ float3 Renderer::Shade(const float3& N, const float3& I)
 		}
 	}
 
-	//for directional light
+	// for directional light
 	float3 lightDirection = directionalLight->SampleDirection(I);
 
 	if (dot(N, lightDirection) > 0.0f)
@@ -123,17 +129,34 @@ float3 Renderer::Shade(const float3& N, const float3& I)
 		}
 	}
 
-	//for point lights, spotlights
-	for (Lighting* light : lights)
+	// for point lights
+	for (PointLight& light : pointLights)
 	{
-		//for other lights
-		lightDirection = light->SampleDirection(I);
+		// for other lights
+		lightDirection = light.SampleDirection(I);
 
 		if (dot(N, lightDirection) > 0.0f)
 		{
-			if (!light->IsOccluded(I, scene))
+			if (!light.IsOccluded(I, scene))
 			{
-				float3 lightRadiance = light->Radiance(I);
+				float3 lightRadiance = light.Radiance(I);
+				float cosa = max(0.0f, dot(N, lightDirection));
+				color += lightRadiance * cosa;
+			}
+		}
+	}
+
+	// for spotlights
+	for (PointLight& light : pointLights)
+	{
+		//for other lights
+		lightDirection = light.SampleDirection(I);
+
+		if (dot(N, lightDirection) > 0.0f)
+		{
+			if (!light.IsOccluded(I, scene))
+			{
+				float3 lightRadiance = light.Radiance(I);
 				float cosa = max(0.0f, dot(N, lightDirection));
 				color += lightRadiance * cosa;
 			}
@@ -158,10 +181,10 @@ void Renderer::Init()
 
 	directionalLight = new DirectionalLight(normalize(float3(0.2f, -0.5, 1)), float3(1, 1, 1));
 
-	lights.push_back(new PointLight(float3(0.033f, 0.051f, 0.124f), float3(1, 0, 0)));
+	//pointLights.push_back(PointLight(float3(0.033f, 0.051f, 0.124f), float3(1, 0, 0)));
 	//lights.push_back(new PointLight(float3(0.5f, 0.7f, 1.0f), float3(0, 1, 0)));
 	//lights.push_back(new PointLight(float3(0.8f, 0.7f, 0.5f), float3(0, 0, 1)));
-	//lights.push_back(new PointLight(float3(0.5f, 0.5f, 0.5f), float3(0, 1, 1)));
+	//pointLights.push_back(PointLight(float3(0.5f, 0.5f, 0.5f), float3(0, 1, 1)));
 
 	for (int i = -15; i < 15; i++)
 	{
@@ -173,7 +196,7 @@ void Renderer::Init()
 
 	//lights.push_back(new SpotLight(float3(0.5f, 0.1f, 1.0f), float3(0, -1, 0), float3(1, 1, 1), 10, 13));
 
-	//areaLights.push_back(new QuadLight(float3(0.5f, 0.2f, 0.5f), float3(0.3f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.3f), float3(1, 1, 1)));
+	areaLights.push_back(new QuadLight(float3(0.033f - 0.025f, 0.093f, 0.124f - 0.025f), float3(0.05f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.05f), float3(1, 1, 1)));
 }
 
 // -----------------------------------------------------------
@@ -184,6 +207,7 @@ static int spp = 1;
 
 void Renderer::Tick(float deltaTime)
 {
+	audio.Play();
 	if (playCameraAnimation)
 	{
 		float cameraDuration = 8.0f;
@@ -219,7 +243,7 @@ void Renderer::Tick(float deltaTime)
 
 	if (playObjectAnimation)
 	{
-		for (int i = 0; i < 36; i++)
+		for (int i = 0; i < 16; i++)
 		{
 			scene.voxels[i].UpdateSpline(deltaTime / 1000.0f);
 
@@ -284,7 +308,10 @@ void Renderer::Tick(float deltaTime)
 	if (alpha > 0.05f) alpha *= 0.5f;
 	fps = 1000.0f / avg;
 	float rps = (SCRWIDTH * SCRHEIGHT) / avg;
-	printf("%5.2fms (%.1ffps) - %.1fMrays/s\n", avg, fps, rps / 1000);
+	if (spp % 20 == 0)
+	{
+		printf("%5.2fms (%.1ffps) - %.1fMrays/s\n", avg, fps, rps / 1000);
+	}
 	// handle user input
 	if (camera.HandleInput(deltaTime) || changedSetting)
 	{
@@ -325,6 +352,44 @@ void Renderer::UI()
 			changedSetting |= ImGui::Checkbox("physics", &physics);
 			changedSetting |= ImGui::Checkbox("play camera animation", &playCameraAnimation);
 			changedSetting |= ImGui::Checkbox("play object animation", &playObjectAnimation);
+			ImGui::EndTabItem();
+		}
+		ImGui::EndTabBar();
+	}
+
+	if (ImGui::BeginTabBar("Scene"))
+	{
+		if (ImGui::BeginTabItem("Scene"))
+		{
+			if (ImGui::Button("Hallway"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(13);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("moving platforms"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(12);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("1000 spheres"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(6);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();

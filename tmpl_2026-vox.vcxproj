@@ -122,10 +122,14 @@
   </ItemDefinitionGroup>
   <!-- END Custom section -->
   <ItemGroup>
+    <ClCompile Include="Audio.cpp" />
     <ClCompile Include="bvh.cpp" />
     <ClCompile Include="Dielectric.cpp" />
     <ClCompile Include="Hybrid.cpp" />
     <ClCompile Include="Material.cpp" />
+    <ClCompile Include="miniaudio.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="QuadLight.cpp" />
     <ClCompile Include="DirectionalLight.cpp" />
     <ClCompile Include="lib\imgui\imgui.cpp" />
@@ -159,10 +163,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AreaLight.h" />
+    <ClInclude Include="Audio.h" />
     <ClInclude Include="bvh.h" />
     <ClInclude Include="Dielectric.h" />
     <ClInclude Include="Hybrid.h" />
     <ClInclude Include="Material.h" />
+    <ClInclude Include="miniaudio.h" />
     <ClInclude Include="QuadLight.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="DirectionalLight.h" />

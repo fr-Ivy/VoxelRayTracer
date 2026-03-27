@@ -9,8 +9,11 @@ Voxel::Voxel()
 
 Voxel::~Voxel()
 {
-	FREE64(grid);
-	FREE64(brickGrid);
+	if (ownsGrid)
+	{
+		FREE64(grid);
+		FREE64(brickGrid);
+	}
 }
 
 void Voxel::Resize(uint size)
@@ -447,6 +450,7 @@ void Voxel::Intersect(Ray& ray)
 				}
 
 			} while (!finishedTraversal &&
+				innerBrickDDA.t < ray.t &&
 				innerBrickDDA.X >= brickMinX && innerBrickDDA.X < brickMaxX &&
 				innerBrickDDA.Y >= brickMinY && innerBrickDDA.Y < brickMaxY &&
 				innerBrickDDA.Z >= brickMinZ && innerBrickDDA.Z < brickMaxZ);
@@ -687,6 +691,7 @@ bool Voxel::IsOccluded(Ray& ray)
 				}
 
 			} while (!finishedTraversal &&
+				innerBrickDDA.t < localRay.t &&
 				innerBrickDDA.X >= brickMinX && innerBrickDDA.X < brickMaxX &&
 				innerBrickDDA.Y >= brickMinY && innerBrickDDA.Y < brickMaxY &&
 				innerBrickDDA.Z >= brickMinZ && innerBrickDDA.Z < brickMaxZ);

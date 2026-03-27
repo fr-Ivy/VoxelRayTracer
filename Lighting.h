@@ -3,13 +3,13 @@
 class Lighting
 {
 public:
-	virtual ~Lighting() = default;
+	~Lighting() = default;
 
-	virtual float3 SampleDirection(const float3& point) const = 0;
+	float3 SampleDirection(const float3& point) const;
 
-	virtual float3 Radiance(const float3& point) const = 0;
+	float3 Radiance(const float3& point) const;
 
-	virtual bool IsOccluded(const float3& point, const Scene& scene) const = 0;
+	bool IsOccluded(const float3& point, const Scene& scene) const;
 
 private:
 };

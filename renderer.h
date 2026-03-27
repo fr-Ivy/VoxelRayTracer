@@ -3,7 +3,10 @@
 #include "Lighting.h"
 #include "AreaLight.h"
 #include "DirectionalLight.h"
+#include "PointLight.h"
 #include "RollBall.h"
+#include "SpotLight.h"
+#include "Audio.h"
 //#include "Material.h"
 
 class Material;
@@ -45,6 +48,7 @@ public:
 	Scene scene;
 	Camera camera;
 	RollBall rollBall;
+	Audio audio;
 
 	bool changedSetting = false;
 	float cameraTime = 0.0f;
@@ -57,7 +61,8 @@ public:
 	float specular = 1.0f;
 	float roughness = 0.02f;
 	DirectionalLight* directionalLight;
-	std::vector<Lighting*> lights;
+	std::vector<PointLight> pointLights;
+	std::vector<SpotLight> spotLights;
 	std::vector<AreaLight*> areaLights;
 
 	std::shared_ptr<Material> reflectiveMat;

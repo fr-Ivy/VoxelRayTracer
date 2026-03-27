@@ -81,6 +81,12 @@
       <Filter>performance_improver\TLAS</Filter>
     </ClCompile>
     <ClCompile Include="Voxel.cpp" />
+    <ClCompile Include="miniaudio.cpp">
+      <Filter>external</Filter>
+    </ClCompile>
+    <ClCompile Include="Audio.cpp">
+      <Filter>Audio</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="renderer.h" />
@@ -175,6 +181,12 @@
       <Filter>performance_improver\TLAS</Filter>
     </ClInclude>
     <ClInclude Include="Voxel.h" />
+    <ClInclude Include="miniaudio.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="Audio.h">
+      <Filter>Audio</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template">
@@ -230,6 +242,9 @@
     </Filter>
     <Filter Include="performance_improver\TLAS">
       <UniqueIdentifier>{39d2a07b-9f3e-446d-8ca1-ec9e36b626ce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Audio">
+      <UniqueIdentifier>{f6d594d9-cbe4-4bc6-95b3-8a56b1778374}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

@@ -7,10 +7,6 @@ QuadLight::QuadLight(const float3& pos, const float3& width, const float3& heigh
 {
 	// Calculate the normal of the quad light using the cross product of the width and the height of the quad light.
 	normal = normalize(cross(width, height));
-	if (normal.y > 0)
-	{
-		normal = -normal;
-	}
 
 	// Calculate the area of the quad light using the length of the cross product of the width and the height of the quad light.
 	area = length(cross(width, height));

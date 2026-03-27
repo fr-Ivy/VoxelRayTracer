@@ -74,12 +74,15 @@ Ray Camera::GetPrimaryRay( const float x, const float y )
 	float randomDistance = pow2f(randomInUnitSquare.x) + pow2f(randomInUnitSquare.y);
 
 	// keep sampling until we get a point inside the unit circle.
-	do
+	if (apertureRadius > 0.0f)
 	{
-		randomInUnitSquare = float2(RandomFloat() * 2.0f - 1.0f, RandomFloat() * 2.0f - 1.0f);
-		randomDistance = pow2f(randomInUnitSquare.x) + pow2f(randomInUnitSquare.y);
-		//std::cout << randomDistance << std::endl;
-	} while(randomDistance > 1);
+		do
+		{
+			randomInUnitSquare = float2(RandomFloat() * 2.0f - 1.0f, RandomFloat() * 2.0f - 1.0f);
+			randomDistance = pow2f(randomInUnitSquare.x) + pow2f(randomInUnitSquare.y);
+			//std::cout << randomDistance << std::endl;
+		} while (randomDistance > 1);
+	}
 
 	// scale the random point to the aperture size and calculate the ray origin and direction
 	float3 lensOffset = (randomInUnitSquare.x * right + randomInUnitSquare.y * up) * apertureRadius;

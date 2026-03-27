@@ -9,7 +9,7 @@
 #define WORLDSIZE3	(WORLDSIZE*WORLDSIZE*WORLDSIZE)
 
 //MLG
-#define BRICKSIZE 32 // power of 2. voxels per brick side
+#define BRICKSIZE 16 // power of 2. voxels per brick side
 #define BRICKGRID (WORLDSIZE / BRICKSIZE)
 #define BRICKGRID2 (BRICKGRID * BRICKGRID)
 #define BRICKGRID3 (BRICKGRID * BRICKGRID * BRICKGRID)
@@ -40,7 +40,7 @@ namespace Tmpl8 {
 	public:
 		std::vector<Sphere> spheres;
 
-		Scene();
+		Scene(int sceneIndex = 6);
 		~Scene();
 		void FindNearest(Ray& ray, bool skipBVH = false) const;
 		bool IsOccluded(Ray& ray) const;

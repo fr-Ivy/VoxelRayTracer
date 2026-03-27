@@ -29,6 +29,7 @@ public:
 	uint brickGridSize = BRICKGRID;
 	uint brickGridSize2 = BRICKGRID2;
 	uint brickGridSize3 = BRICKGRID3;
+	bool ownsGrid = true;
 
 	Voxel();
 	~Voxel();
