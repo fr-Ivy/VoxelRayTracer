@@ -6,7 +6,7 @@ struct TLASNode
 	uint leftRight;
 	float3 aabbMax;
 	uint BLAS;
-	bool IsLeaf();
+	bool IsLeaf() const;
 };
 
 class TLAS
@@ -15,9 +15,9 @@ public:
 	TLAS() = default;
 	TLAS(Voxel* voxel, int N);
 	void Build();
-	void Intersect(Ray& ray);
-	bool IsOccluded(Ray& ray);
-	int FindBestMatch(int* list, int N, int A);
+	void Intersect(Ray& ray) const;
+	bool IsOccluded(Ray& ray) const;
+	int FindBestMatch(const int* list, int N, int A) const;
 
 private:
 	TLASNode* tlasNode = 0;

@@ -4,25 +4,25 @@
 
 
 
-void AABB::Grow(float3 p)
+void AABB::Grow(float3 const p)
 {
 	// clamp p to avoid issues
 	bmin = fminf(bmin, p);
 	bmax = fmaxf(bmax, p);
 }
 
-float AABB::Area()
+float AABB::Area() const
 {
 	// Surface area of the AABB, later used for SAH calculations
 	float3 e = bmax - bmin;
 	return e.x * e.y + e.y * e.z + e.z * e.x;
 }
 
-void BVH::BuildBVH(Scene& scene)
+void BVH::BuildBVH(const Scene& scene)
 {
 	// build the BVH 
 	nodesUsed = 1;
-	int sphereCount = static_cast<int>(scene.spheres.size());
+	int const sphereCount = static_cast<int>(scene.spheres.size());
 	if (sphereCount == 0)
 	{
 		return;
@@ -57,7 +57,6 @@ void BVH::UpdateNodeBounds(uint nodeIndex, const Scene& scene)
 	{
 		const Sphere& sphere = scene.spheres[sphereIndex[node.leftFirst + i]];
 
-		//AABB
 		node.aabbMin = fminf(node.aabbMin, sphere.center - sphere.radius);
 		node.aabbMax = fmaxf(node.aabbMax, sphere.center + sphere.radius);
 	}
@@ -158,15 +157,15 @@ void BVH::Subdivide(uint nodeIndex, const Scene& scene)
 	}
 
 	// if no split was found, return.
-	float3 extent = node.aabbMax - node.aabbMin;
-	float parentArea = extent.x * extent.y + extent.y * extent.z + extent.z * extent.x;
+	float3 const extent = node.aabbMax - node.aabbMin;
+	float const parentArea = extent.x * extent.y + extent.y * extent.z + extent.z * extent.x;
 	float parentCost = node.sphereCount * parentArea;
 	if (bestCost >= parentCost)
 	{
 		return;
 	}
 
-	// seperate the spheres in the node into two groups based on their best split and create child nodes for them.
+	// separate the spheres in the node into two groups based on their best split and create child nodes for them.
 	int i = static_cast<int>(node.leftFirst);
 	int j = i + static_cast<int>(node.sphereCount - 1);
 
@@ -181,15 +180,18 @@ void BVH::Subdivide(uint nodeIndex, const Scene& scene)
 			swap(sphereIndex[i], sphereIndex[j--]);
 		}
 	}
-
+	
+	// if all the spheres end up on the same side, then return. This node can't be split.
 	int leftCount = i - node.leftFirst;
 	if (leftCount == 0 || leftCount == static_cast<int>(node.sphereCount))
 	{
 		return;
 	}
 
-	int leftChildIndex = nodesUsed++;
-	int rightChildIndex = nodesUsed++;
+	// create the child nodes.
+	int const leftChildIndex = nodesUsed++;
+	int const rightChildIndex = nodesUsed++;
+
 
 	bvhNodes[leftChildIndex].leftFirst = node.leftFirst;
 	bvhNodes[leftChildIndex].sphereCount = leftCount;
@@ -300,7 +302,7 @@ float BVH::IntersectAABB2(const Ray& ray, const float3 bmin, const float3 bmax)
 	return 1e34f;
 }
 
-float BVH::EvaluateSAH(BVHNode& node, int axis, float pos, const Scene& scene)
+float BVH::EvaluateSAH(BVHNode& node, int axis, float pos, const Scene& scene) const
 {
 	// evaluate the SAH cost of splitting the node along the current axis at the given position.
 	AABB leftBox, rightBox;

@@ -12,11 +12,11 @@ QuadLight::QuadLight(const float3& pos, const float3& width, const float3& heigh
 	area = length(cross(width, height));
 }
 
-bool QuadLight::sample(const float3& intersectionPoint, const float2& randomNumber, float3& direction, float3& emission,
+bool QuadLight::Sample(const float3& intersectionPoint, const float2& randomNumber, float3& direction, float3& emission,
                        float& distance, float& pdf) const
 {
 	// Sample a point on the quad light using random numbers.
-	float3 d = (pos + width * randomNumber.x + height * randomNumber.y) - intersectionPoint;
+	float3 const d = (pos + width * randomNumber.x + height * randomNumber.y) - intersectionPoint;
 	distance = length(d);
 
 	direction = d / distance;
@@ -35,7 +35,7 @@ bool QuadLight::sample(const float3& intersectionPoint, const float2& randomNumb
 	return true;
 }
 
-float3 QuadLight::getNormal() const
+float3 QuadLight::GetNormal() const
 {
 	return normal;
 }

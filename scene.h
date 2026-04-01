@@ -58,7 +58,7 @@ namespace Tmpl8 {
 
 		void SetSphere(float3 center, float radius, uint material);
 		void AddSplineSegment(int sphereIndex, float3 p0, float3 p1, float3 p2, float3 p3, float duration);
-		float3 EvaluateSpline(Sphere& sphere, float t);
+		float3 EvaluateSpline(const Sphere& sphere, float t);
 		void UpdateSphereSpline(float deltaTime);
 
 		bool shadows = true;
@@ -140,10 +140,10 @@ namespace Tmpl8 {
 			_mm_max_ps(ty, _mm_shuffle_ps(ty, ty, swap))),
 			_mm_max_ps(tz, _mm_shuffle_ps(tz, tz, swap)));
 
-		float tmin1 = _mm_cvtss_f32(tmin);
-		float tmax1 = _mm_cvtss_f32(tmax);
-		float tmin2 = _mm_cvtss_f32(_mm_shuffle_ps(tmin, tmin, _MM_SHUFFLE(0, 0, 0, 2)));
-		float tmax2 = _mm_cvtss_f32(_mm_shuffle_ps(tmax, tmax, _MM_SHUFFLE(0, 0, 0, 2)));
+		float const tmin1 = _mm_cvtss_f32(tmin);
+		float const tmax1 = _mm_cvtss_f32(tmax);
+		float const tmin2 = _mm_cvtss_f32(_mm_shuffle_ps(tmin, tmin, _MM_SHUFFLE(0, 0, 0, 2)));
+		float const tmax2 = _mm_cvtss_f32(_mm_shuffle_ps(tmax, tmax, _MM_SHUFFLE(0, 0, 0, 2)));
 
 		d1 = (tmax1 >= tmin1 && tmin1 < ray.t && tmax1 > 0) ? tmin1 : 1e34f;
 		d2 = (tmax2 >= tmin2 && tmin2 < ray.t && tmax2 > 0) ? tmin2 : 1e34f;

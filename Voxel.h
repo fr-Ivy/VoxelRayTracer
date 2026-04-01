@@ -34,14 +34,14 @@ public:
 	Voxel();
 	~Voxel();
 	void Resize(uint size);
-	void Set(const uint x, const uint y, const uint z, const uint v);
+	void Set(const uint x, const uint y, const uint z, const uint v) const;
 	void SetTransform(const mat4& t);
-	void Intersect(Ray& ray);
-	bool IsOccluded(Ray& ray);
+	void Intersect(Ray& ray) const;
+	bool IsOccluded(Ray& ray) const;
 	void BuildBrickGrid();
 	void LoadFromFile(const char* file);
 	void AddSplineSegment(float3 p0, float3 p1, float3 p2, float3 p3, float duration);
-	float3 EvaluateSpline(float t);
+	float3 EvaluateSpline(float t) const;
 	void UpdateSpline(float deltaTime);
 	
 
@@ -55,7 +55,7 @@ public:
 
 private:
 	bool Setup3DDDA(Ray& ray, DDAState& state) const;
-	void UpdateBrick(uint bx, uint by, uint bz);
+	void UpdateBrick(uint bx, uint by, uint bz) const;
 
 };
 

@@ -23,15 +23,15 @@ float3 SpotLight::Radiance(const float3& point) const
 	float spotFactor = dot(normalize(L), lightDir);
 
 	// Attenuation based on the inverse square formula.
-	float constant = 1.0f;
-	float linear = 0.15f;
-	float quadratic = 0.1f;
+	float constexpr constant = 1.0f;
+	float constexpr linear = 0.15f;
+	float constexpr quadratic = 0.1f;
 
-	float attenuation = 1 / (constant + linear * distance + quadratic * (distance * distance));
+	float const attenuation = 1 / (constant + linear * distance + quadratic * (distance * distance));
 
 	// Calculate the spotlight effect
-	float inner = std::cos(innerCutOff * PI / 180);
-	float outer = std::cos(outerCutOff * PI / 180);
+	float const inner = std::cos(innerCutOff * PI / 180);
+	float const outer = std::cos(outerCutOff * PI / 180);
 
 	float spot = (spotFactor - outer) / (inner - outer);
 	spot = max(0.0f, min(1.0f, spot));
@@ -46,7 +46,7 @@ float3 SpotLight::Radiance(const float3& point) const
 
 bool SpotLight::IsOccluded(const float3& point, const Scene& scene) const
 {
-	float3 L = pos - point;
+	float3 const L = pos - point;
 	float distance = length(L);
 
 	Ray shadowRay(point, L, distance);

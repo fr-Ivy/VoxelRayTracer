@@ -8,16 +8,16 @@ void RollBall::Move(float deltaTime, Sphere& ball, Scene& scene)
 	//std::cout << ball.center.x << ", " << ball.center.y << ", " << ball.center.z << std::endl;
 
 	// gravity
-	float3 gravity = float3(0, -9.81f / WORLDSIZE, 0);
+	float3 const gravity = float3(0, -9.81f / WORLDSIZE, 0);
 
 	ball.velocity = ball.center - ball.previousCenter;
 
 
-	float3 center = ball.center + ball.velocity + gravity * deltaTime * deltaTime;
+	float3 const center = ball.center + ball.velocity + gravity * deltaTime * deltaTime;
 	ball.previousCenter = ball.center;
 	ball.center = center;
 
-	hit(ball, scene);
+	Hit(ball, scene);
 
 	ball.velocity = ball.center - ball.previousCenter;
 
@@ -26,9 +26,9 @@ void RollBall::Move(float deltaTime, Sphere& ball, Scene& scene)
 	ball.previousCenter = ball.center - ball.velocity;
 }
 
-void RollBall::hit(Sphere& ball, Scene& scene)
+void RollBall::Hit(Sphere& ball, Scene& scene)
 {
-	float3 directions[26] = 
+	float3 const directions[26] = 
 	{
 		float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1),
 		float3(-1, 0, 0), float3(0, -1, 0), float3(0, 0, -1),
@@ -58,7 +58,7 @@ void RollBall::hit(Sphere& ball, Scene& scene)
 				float penetration = ball.radius - sphereRay.t;
 				penetration = max(0.0f, min(penetration, ball.radius));
 
-				float3 push = -direction * penetration;
+				float3 const push = -direction * penetration;
 				ball.center += push;
 			}
 		}

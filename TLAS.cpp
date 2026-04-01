@@ -3,7 +3,7 @@
 
 #include "Voxel.h"
 
-bool TLASNode::IsLeaf()
+bool TLASNode::IsLeaf() const
 {
 	return leftRight == 0;
 }
@@ -33,6 +33,7 @@ void TLAS::Build()
 	}
 
 	// use agglomerative clustering to build the TLAS
+	// repeatedly merge the two closest nodes until only one node is left.
 	int A = 0;
 	int B = FindBestMatch(nodeIndex, nodeIndices, A);
 	while (nodeIndices > 1)
@@ -40,8 +41,8 @@ void TLAS::Build()
 		int C = FindBestMatch(nodeIndex, nodeIndices, B);
 		if (A == C)
 		{
-			int nodeIndexA = nodeIndex[A];
-			int nodeIndexB = nodeIndex[B];
+			int const nodeIndexA = nodeIndex[A];
+			int const nodeIndexB = nodeIndex[B];
 			TLASNode& nodeA = tlasNode[nodeIndexA];
 			TLASNode& nodeB = tlasNode[nodeIndexB];
 			TLASNode& newNode = tlasNode[nodesUsed];
@@ -61,13 +62,15 @@ void TLAS::Build()
 	tlasNode[0] = tlasNode[nodeIndex[A]];
 }
 
-void TLAS::Intersect(Ray& ray)
+void TLAS::Intersect(Ray& ray) const
 {
-	TLASNode* node = &tlasNode[0];
-	TLASNode* stack[64];
+	// traverse the TLAS
+	const TLASNode* node = &tlasNode[0];
+	const TLASNode* stack[64];
 	uint stackPtr = 0;
 	while (true)
 	{
+		// if leaf node, intersect the ray with the BLAS.
 		if (node->IsLeaf())
 		{
 			blas[node->BLAS].Intersect(ray);
@@ -93,6 +96,7 @@ void TLAS::Intersect(Ray& ray)
 			swap(child1, child2);
 		}
 
+		// if the ray misses both children, then break.
 		if (distance1 == 1e30f)
 		{
 			if (stackPtr == 0)
@@ -115,13 +119,15 @@ void TLAS::Intersect(Ray& ray)
 	}
 }
 
-bool TLAS::IsOccluded(Ray& ray)
+bool TLAS::IsOccluded(Ray& ray) const
 {
-	TLASNode* node = &tlasNode[0];
-	TLASNode* stack[64];
+	// traverse the TLAS
+	const TLASNode* node = &tlasNode[0];
+	const TLASNode* stack[64];
 	uint stackPtr = 0;
 	while (true)
 	{
+		// if leaf node, intersect the ray with the BLAS.
 		if (node->IsLeaf())
 		{
 			if (blas[node->BLAS].IsOccluded(ray))
@@ -150,6 +156,7 @@ bool TLAS::IsOccluded(Ray& ray)
 			swap(child1, child2);
 		}
 
+		// if the ray misses both children, then break.
 		if (distance1 == 1e30f)
 		{
 			if (stackPtr == 0)
@@ -173,8 +180,9 @@ bool TLAS::IsOccluded(Ray& ray)
 	return false;
 }
 
-int TLAS::FindBestMatch(int* list, int N, int A)
+int TLAS::FindBestMatch(const int* list, int const N, int const A) const
 {
+	// find the BLAS that has the smallest surface area when merged with A.
 	float smallest = 1e30f;
 	int bestB = -1;
 	for (int B = 0; B < N; B++)
@@ -183,7 +191,7 @@ int TLAS::FindBestMatch(int* list, int N, int A)
 		{
 			float3 bmax = fmaxf(tlasNode[list[A]].aabbMax, tlasNode[list[B]].aabbMax);
 			float3 bmin = fminf(tlasNode[list[A]].aabbMin, tlasNode[list[B]].aabbMin);
-			float3 e = bmax - bmin;
+			float3 const e = bmax - bmin;
 			float surfaceArea = e.x * e.y + e.y * e.z + e.z * e.x;
 			if (surfaceArea < smallest)
 			{

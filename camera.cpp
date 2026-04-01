@@ -119,37 +119,37 @@ Ray Camera::GetPrimaryRay( const float x, const float y )
 	// - if we have other primitives as well, we *do* need to normalize!
 }
 
-float3 Camera::PaniniProjection(float2& tc, float fov_degrees, float d)
+float3 Camera::PaniniProjection(float2& tc, float const fov_degrees, float const d)
 {
 	// based on https://www.shadertoy.com/view/Wt3fzB
-	float fov_radians = fov_degrees * (PI / 180);
+	float const fov_radians = fov_degrees * (PI / 180);
 
-	float d2 = pow2f(d);
+	float const d2 = pow2f(d);
 
-	float fo = PI / 2 - fov_radians * 0.5f;
+	float const fo = PI / 2 - fov_radians * 0.5f;
 
-	float f = cos(fo) / sin(fo) * 2.0f;
-	float f2 = pow2f(f);
+	float const f = cos(fo) / sin(fo) * 2.0f;
+	float const f2 = pow2f(f);
 
-	float b = (sqrt(max(0.0f, pow2f(d + d2) * (f2 + pow2f(f2)))) - (d * f + f)) / (d2 + d2 * f2 - 1.0f);
+	float const b = (sqrt(max(0.0f, pow2f(d + d2) * (f2 + pow2f(f2)))) - (d * f + f)) / (d2 + d2 * f2 - 1.0f);
 
 	//printf("b = %f, f = %f\n", b, f);
 
 	tc *= b;
 
-	float h = tc.x;
-	float v = tc.y;
+	float const h = tc.x;
+	float const v = tc.y;
 
-	float h2 = pow2f(h);
+	float const h2 = pow2f(h);
 
-	float k = h2 / pow2f(d + 1.0f);
-	float k2 = pow2f(k);
+	float const k = h2 / pow2f(d + 1.0f);
+	float const k2 = pow2f(k);
 
-	float discr = max(0.0f, k2 * d2 - (k + 1.0f) * (k * d2 - 1.0f));
+	float const discr = max(0.0f, k2 * d2 - (k + 1.0f) * (k * d2 - 1.0f));
 
-	float cosPhi = (-k * d + sqrt(discr)) / (k + 1.0f);
-	float S = (d + 1.0f) / (d + cosPhi);
-	float tanTheta = v / S;
+	float const cosPhi = (-k * d + sqrt(discr)) / (k + 1.0f);
+	float const S = (d + 1.0f) / (d + cosPhi);
+	float const tanTheta = v / S;
 
 	float sinPhi = sqrt(max(0.0f, 1.0f - pow2f(cosPhi)));
 
@@ -158,23 +158,23 @@ float3 Camera::PaniniProjection(float2& tc, float fov_degrees, float d)
 		sinPhi *= -1.0f;
 	}
 
-	float s = 1.0f / sqrt(1.0f + pow2f(tanTheta));
+	float const s = 1.0f / sqrt(1.0f + pow2f(tanTheta));
 
 	return float3(sinPhi, tanTheta, cosPhi) * s;
 }
 
-float3 Camera::FishEyeLens(float3 dir, float3 right, float3 up, float3 front, float fov_degrees)
+float3 Camera::FishEyeLens(float3 const dir, float3 const right, float3 const up, float3 const front, float const fov_degrees)
 {
 	// calculate the fisheye direction based on cameras world coordinates.
-	float fov_radians = fov_degrees * (PI / 180);
+	float const fov_radians = fov_degrees * (PI / 180);
 
 	//float distance = sqrt(pow2f(tc.x) + pow2f(tc.y));
 	float theta = acos(dot(dir, front));
-	float phi = atan2(dot(dir, up), dot(dir, right));
-	float maxTheta = fov_radians * 0.5f;
+	float const phi = atan2(dot(dir, up), dot(dir, right));
+	float const maxTheta = fov_radians * 0.5f;
 	theta = theta / maxTheta * (PI * 0.5f);
 
-	float3 local = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+	float3 const local = float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
 	return local;
 }
 
@@ -212,18 +212,18 @@ bool Camera::HandleInput( const float t )
 	return true;
 }
 
-void Camera::AddSplineSegment(float3 p0, float3 p1, float3 p2, float3 p3, float duration)
+void Camera::AddSplineSegment(float3 const p0, float3 const p1, float3 const p2, float3 const p3, float const duration)
 {
-	float alpha = 0.5f;
-	float tension = 0.0f;
+	float constexpr alpha = 0.5f;
+	float constexpr tension = 0.0f;
 
-	float t01 = pow(max(length(p1 - p0), 0.0001f), alpha);
-	float t12 = pow(max(length(p2 - p1), 0.0001f), alpha);
-	float t23 = pow(max(length(p3 - p2), 0.0001f), alpha);
+	float const t01 = pow(max(length(p1 - p0), 0.0001f), alpha);
+	float const t12 = pow(max(length(p2 - p1), 0.0001f), alpha);
+	float const t23 = pow(max(length(p3 - p2), 0.0001f), alpha);
 
-	float3 m1 = (1.0f - tension) *
+	float3 const m1 = (1.0f - tension) *
 		(p2 - p1 + t12 * ((p1 - p0) / t01 - (p2 - p0) / (t01 + t12)));
-	float3 m2 = (1.0f - tension) *
+	float3 const m2 = (1.0f - tension) *
 		(p2 - p1 + t12 * ((p3 - p2) / t23 - (p3 - p1) / (t12 + t23)));
 
 	SEGMENT segment;
@@ -235,7 +235,7 @@ void Camera::AddSplineSegment(float3 p0, float3 p1, float3 p2, float3 p3, float 
 	splineSegments.push_back(segment);
 }
 
-float3 Camera::EvaluateSpline(float t)
+float3 Camera::EvaluateSpline(float t) const
 {
 	for (auto& segment : splineSegments)
 	{
@@ -250,7 +250,7 @@ float3 Camera::EvaluateSpline(float t)
 	return splineSegments.back().d;
 }
 
-void Camera::UpdateSpline(float deltaTime, float3 lookAtTarget)
+void Camera::UpdateSpline(float const deltaTime, float3 const lookAtTarget)
 {
 	if (splineSegments.empty())
 	{

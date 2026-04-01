@@ -1,7 +1,7 @@
 #include "template.h"
 #include "Refractive.h"
 
-float3 Refractive::calc(Renderer& renderer, const Ray& ray, const float3 N, float3 I, const int depth) const
+float3 Refractive::Calc(Renderer& renderer, const Ray& ray, const float3 N, float3 const I, const int depth) const
 {
 	// Calculate the refraction ray direction using Snell's law.
 	float n1 = 1.0f, n2 = 1.46f;

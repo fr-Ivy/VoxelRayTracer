@@ -16,7 +16,7 @@ Voxel::~Voxel()
 	}
 }
 
-void Voxel::Resize(uint size)
+void Voxel::Resize(uint const size)
 {
 	FREE64(grid);
 	FREE64(brickGrid);
@@ -37,7 +37,7 @@ void Voxel::Resize(uint size)
 	SetTransform(mat4::Scale(float3(gridScale)));
 }
 
-void Voxel::Set(const uint x, const uint y, const uint z, const uint v)
+void Voxel::Set(const uint x, const uint y, const uint z, const uint v) const
 {
 	const uint old = grid[x + y * worldSize + z * worldSize2];
 	grid[x + y * worldSize + z * worldSize2] = v;
@@ -65,8 +65,8 @@ void Voxel::SetTransform(const mat4& t)
 	transform = t;
 	invertedTransform = t.Inverted();
 
-	aabbMin = float3(1e34f); // LARGE_FLOAT
-	aabbMax = float3(-1e34f);
+	aabbMin = float3(LARGE_FLOAT); // LARGE_FLOAT
+	aabbMax = float3(-LARGE_FLOAT);
 
 	for (int i = 0; i < 8; i++)
 	{
@@ -118,7 +118,7 @@ void Voxel::BuildBrickGrid()
 				const uint vy = by * BRICKSIZE;
 				const uint vz = bz * BRICKSIZE;
 
-				//walks over voxels inside of the brick
+				// walks over voxels inside of the brick
 				for (uint lz = 0; lz < BRICKSIZE; lz++)
 				{
 					for (uint ly = 0; ly < BRICKSIZE; ly++)
@@ -167,18 +167,18 @@ void Voxel::LoadFromFile(const char* file)
 	fclose(f);
 }
 
-void Voxel::AddSplineSegment(float3 p0, float3 p1, float3 p2, float3 p3, float duration)
+void Voxel::AddSplineSegment(float3 const p0, float3 const p1, float3 const p2, float3 const p3, float const duration)
 {
-	float alpha = 0.5f;
-	float tension = 0.0f;
+	float constexpr alpha = 0.5f;
+	float constexpr tension = 0.0f;
 
-	float t01 = pow(length(p1 - p0), alpha);
-	float t12 = pow(length(p2 - p1), alpha);
-	float t23 = pow(length(p3 - p2), alpha);
+	float const t01 = pow(length(p1 - p0), alpha);
+	float const t12 = pow(length(p2 - p1), alpha);
+	float const t23 = pow(length(p3 - p2), alpha);
 
-	float3 m1 = (1.0f - tension) *
+	float3 const m1 = (1.0f - tension) *
 		(p2 - p1 + t12 * ((p1 - p0) / t01 - (p2 - p0) / (t01 + t12)));
-	float3 m2 = (1.0f - tension) *
+	float3 const m2 = (1.0f - tension) *
 		(p2 - p1 + t12 * ((p3 - p2) / t23 - (p3 - p1) / (t12 + t23)));
 
 	SEGMENT segment;
@@ -190,7 +190,7 @@ void Voxel::AddSplineSegment(float3 p0, float3 p1, float3 p2, float3 p3, float d
 	splineSegments.push_back(segment);
 }
 
-float3 Voxel::EvaluateSpline(float t)
+float3 Voxel::EvaluateSpline(float t) const
 {
 	for (auto& segment : splineSegments)
 	{
@@ -205,7 +205,7 @@ float3 Voxel::EvaluateSpline(float t)
 	return splineSegments.back().d;
 }
 
-void Voxel::UpdateSpline(float deltaTime)
+void Voxel::UpdateSpline(float const deltaTime)
 {
 	
 	if (splineSegments.empty())
@@ -229,7 +229,7 @@ void Voxel::UpdateSpline(float deltaTime)
 	SetTransform(mat4::Translate(pos) * mat4::Scale(float3(scale)));
 }
 
-void Voxel::UpdateBrick(uint bx, uint by, uint bz)
+void Voxel::UpdateBrick(uint const bx, uint const by, uint const bz) const
 {
 	uint occupied = 0;
 	const uint vx = bx * BRICKSIZE;
@@ -254,8 +254,9 @@ void Voxel::UpdateBrick(uint bx, uint by, uint bz)
 }
 
 
-void Voxel::Intersect(Ray& ray)
+void Voxel::Intersect(Ray& ray) const
 {
+	// store ray into localRay
 	Ray localRay = ray;
 	localRay.O = TransformPosition(ray.O, invertedTransform);
 	localRay.D = TransformVector(ray.D, invertedTransform);
@@ -270,10 +271,6 @@ void Voxel::Intersect(Ray& ray)
 	}
 
 	uint cell, lastCell = 0, axis = localRay.axis;
-
-	//bool voxelHit = false;
-	//float voxelT = 1e34f;
-	//uint voxelHitMaterial = 0;
 
 	if (localRay.inside)
 	{
@@ -303,6 +300,7 @@ void Voxel::Intersect(Ray& ray)
 		return;
 	}
 
+	// set up brick DDA
 	DDAState brickDDA;
 	brickDDA.step = s.step;
 	brickDDA.tdelta = s.tdelta * static_cast<float>(BRICKSIZE);
@@ -321,13 +319,9 @@ void Voxel::Intersect(Ray& ray)
 	const float cellSize = 1.0f / worldSize;
 	bool finishedTraversal = false;
 
+	// start MLG
 	do
 	{
-		//if (sphereHit && entryT > sphereT)
-		//{
-		//	break;
-		//}
-
 		if (brickGrid[brickDDA.X + brickDDA.Y * brickGridSize + brickDDA.Z * brickGridSize2])
 		{
 			const float3 brickEntryPos = localRay.O + (entryT + EPSILON) * localRay.D;
@@ -339,6 +333,7 @@ void Voxel::Intersect(Ray& ray)
 			const uint brickMinZ = brickDDA.Z * BRICKSIZE;
 			const uint brickMaxZ = min((brickDDA.Z + 1) * BRICKSIZE, static_cast<uint>(worldSize));
 
+			// set up inner brick DDA
 			DDAState innerBrickDDA;
 			innerBrickDDA.step = s.step;
 			innerBrickDDA.tdelta = s.tdelta;
@@ -348,6 +343,7 @@ void Voxel::Intersect(Ray& ray)
 			innerBrickDDA.Y = clamp(static_cast<uint>(brickEntryPos.y * worldSize), brickMinY, brickMaxY - 1);
 			innerBrickDDA.Z = clamp(static_cast<uint>(brickEntryPos.z * worldSize), brickMinZ, brickMaxZ - 1);
 
+			// calculate tmax for the inner brick DDA
 			if (s.step.x > 0)
 			{
 				innerBrickDDA.tmax.x = ((innerBrickDDA.X + 1.0f) * cellSize - localRay.O.x) * localRay.rD.x;
@@ -373,15 +369,12 @@ void Voxel::Intersect(Ray& ray)
 				innerBrickDDA.tmax.z = ((innerBrickDDA.Z) * cellSize - localRay.O.z) * localRay.rD.z;
 			}
 
+			// loop through the inner brick to find voxels, as soon as there is a hit, break out of the loop and return the hit.
 			do
 			{
-				//if (sphereHit && innerBrickDDA.t > sphereT)
-				//{
-				//	finishedTraversal = true;
-				//	break;
-				//}
 				cell = grid[innerBrickDDA.X + innerBrickDDA.Y * worldSize + innerBrickDDA.Z * worldSize2];
 
+				// if solid voxel, write to the ray and break out of the loop.
 				if (cell)
 				{
 					localRay.voxel = cell;
@@ -390,6 +383,7 @@ void Voxel::Intersect(Ray& ray)
 					finishedTraversal = true;
 					break;
 				}
+				// make sure we do not step outside the brick, if it does, break out of the loop.
 				if (innerBrickDDA.tmax.x < innerBrickDDA.tmax.y)
 				{
 					if (innerBrickDDA.tmax.x < innerBrickDDA.tmax.z)
@@ -448,18 +442,19 @@ void Voxel::Intersect(Ray& ray)
 						innerBrickDDA.tmax.z += innerBrickDDA.tdelta.z;
 					}
 				}
-
 			} while (!finishedTraversal &&
 				innerBrickDDA.t < ray.t &&
 				innerBrickDDA.X >= brickMinX && innerBrickDDA.X < brickMaxX &&
 				innerBrickDDA.Y >= brickMinY && innerBrickDDA.Y < brickMaxY &&
 				innerBrickDDA.Z >= brickMinZ && innerBrickDDA.Z < brickMaxZ);
+
 			if (finishedTraversal)
 			{
 				break;
 			}
 		}
-
+		
+		// make sure we do not step outside the grid, if it does, break out of the loop.
 		if (brickDDA.tmax.x < brickDDA.tmax.y)
 		{
 			if (brickDDA.tmax.x < brickDDA.tmax.z)
@@ -521,6 +516,7 @@ void Voxel::Intersect(Ray& ray)
 
 	} while (!finishedTraversal);
 
+	// update ray with the information in localRay IF there is a voxel and localRay is in front of ray.
 	if (localRay.voxel != 0 && localRay.t < ray.t)
 	{
 		ray.t = localRay.t;
@@ -535,16 +531,15 @@ void Voxel::Intersect(Ray& ray)
 	}
 }
 
-bool Voxel::IsOccluded(Ray& ray)
+bool Voxel::IsOccluded(Ray& ray) const
 {
+	// store ray into localRay
 	Ray localRay = ray;
 	localRay.O = TransformPosition(ray.O, invertedTransform);
 	localRay.D = TransformVector(ray.D, invertedTransform);
 	localRay.rD = float3(1.0f / localRay.D.x, 1.0f / localRay.D.y, 1.0f / localRay.D.z);
 	localRay.Dsign = float3(localRay.D.x < 0 ? 1.0f : 0.0f, localRay.D.y < 0 ? 1.0f : 0.0f, localRay.D.z < 0 ? 1.0f : 0.0f);
 	localRay.t = ray.t;
-
-	DDAState brickDDA;
 
 	// setup Amanatides & Woo grid traversal
 	DDAState s;
@@ -553,6 +548,8 @@ bool Voxel::IsOccluded(Ray& ray)
 
 	uint cell = 0;
 
+	// set up brick DDA
+	DDAState brickDDA;
 	brickDDA.step = s.step;
 	brickDDA.tdelta = s.tdelta * static_cast<float>(BRICKSIZE);
 	brickDDA.t = s.t;
@@ -570,14 +567,9 @@ bool Voxel::IsOccluded(Ray& ray)
 	const float cellSize = 1.0f / worldSize;
 	bool finishedTraversal = false;
 
-	// start stepping
+	// start MLG
 	do
 	{
-		//if (sphereHit && entryT > sphereT)
-		//{
-		//	break;
-		//}
-
 		if (brickGrid[brickDDA.X + brickDDA.Y * brickGridSize + brickDDA.Z * brickGridSize2])
 		{
 			const float3 brickEntryPos = localRay.O + (entryT + EPSILON) * localRay.D;
@@ -589,6 +581,7 @@ bool Voxel::IsOccluded(Ray& ray)
 			const uint brickMinZ = brickDDA.Z * BRICKSIZE;
 			const uint brickMaxZ = min((brickDDA.Z + 1) * BRICKSIZE, static_cast<uint>(worldSize));
 
+			// set up inner brick DDA
 			DDAState innerBrickDDA;
 			innerBrickDDA.step = s.step;
 			innerBrickDDA.tdelta = s.tdelta;
@@ -598,6 +591,7 @@ bool Voxel::IsOccluded(Ray& ray)
 			innerBrickDDA.Y = clamp(static_cast<uint>(brickEntryPos.y * worldSize), brickMinY, brickMaxY - 1);
 			innerBrickDDA.Z = clamp(static_cast<uint>(brickEntryPos.z * worldSize), brickMinZ, brickMaxZ - 1);
 
+			// calculate tmax for the inner brick DDA
 			if (s.step.x > 0)
 			{
 				innerBrickDDA.tmax.x = ((innerBrickDDA.X + 1.0f) * cellSize - localRay.O.x) * localRay.rD.x;
@@ -623,19 +617,17 @@ bool Voxel::IsOccluded(Ray& ray)
 				innerBrickDDA.tmax.z = ((innerBrickDDA.Z) * cellSize - localRay.O.z) * localRay.rD.z;
 			}
 
+			// loop through the inner brick to find voxels, as soon as there is a hit, break out of the loop and return the hit.
 			do
 			{
-				//if (sphereHit && innerBrickDDA.t > sphereT)
-				//{
-				//	finishedTraversal = true;
-				//	break;
-				//}
 				cell = grid[innerBrickDDA.X + innerBrickDDA.Y * worldSize + innerBrickDDA.Z * worldSize2];
 
 				if (cell)
 				{
 					return true;
 				}
+
+				// make sure we do not step outside the brick, if it does, break out of the loop.
 				if (innerBrickDDA.tmax.x < innerBrickDDA.tmax.y)
 				{
 					if (innerBrickDDA.tmax.x < innerBrickDDA.tmax.z)
@@ -702,6 +694,7 @@ bool Voxel::IsOccluded(Ray& ray)
 			}
 		}
 
+		// make sure we do not step outside the grid, if it does, break out of the loop.
 		if (brickDDA.tmax.x < brickDDA.tmax.y)
 		{
 			if (brickDDA.tmax.x < brickDDA.tmax.z)

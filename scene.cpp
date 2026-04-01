@@ -65,16 +65,6 @@ Scene::Scene(int sceneIndex)
 							voxels[0].Set(x, y, z, 0x7777ff);
 						}
 					}
-
-					//sphere position = (65, 40, 60)
-					//radius = 10
-					//formula sphere = (x - a)^2 + (y - b)^2 + (z - c)^2 = r^2
-
-					//if (pow2f(static_cast<float>(x - 65)) + pow2f(static_cast<float>(y - 40)) + pow2f(static_cast<float>(z - 60)) <= pow2f(10))
-					//{
-						//Set(x, y, z, 0x02aaffaa);
-					//}
-
 				}
 			}
 		}
@@ -109,8 +99,6 @@ Scene::Scene(int sceneIndex)
 					{
 						voxels[0].Set(x, y, z, 0x5ffffff);
 					}
-
-
 				}
 			}
 		}
@@ -288,29 +276,31 @@ Scene::Scene(int sceneIndex)
 		voxelCount = 1;
 		voxels = new Voxel[voxelCount];
 		voxels[0].Resize(512);
-		const int stepCount = 30;
-		const int stepHeight = 1;
-		const int stepDepth = 10;
-		const int stepWidth = 50;
+		int constexpr stepCount = 30;
+		int constexpr stepHeight = 1;
+		int constexpr stepDepth = 10;
+		int constexpr stepWidth = 50;
 
-		const int baseX = 200;
-		const int baseZ = 200;
+		int constexpr baseX = 200;
+		int constexpr baseZ = 200;
 
-		uint stepColor =
-			(0x00 << 24) |
-			(160 << 16) |
-			(160 << 8) |
-			160;
+		uint stepColor = 0x666666;
 
 		for (int i = 0; i < stepCount; i++)
 		{
-			int yStart = i * stepHeight;
-			int zStart = baseZ + i * stepDepth;
+			int startY = i * stepHeight;
+			int startZ = baseZ + i * stepDepth;
 
-			for (int y = yStart; y < yStart + stepHeight; y++)
-				for (int z = zStart; z < zStart + stepDepth; z++)
+			for (int y = startY; y < startY + stepHeight; y++)
+			{
+				for (int z = startZ; z < startZ + stepDepth; z++)
+				{
 					for (int x = baseX; x < baseX + stepWidth; x++)
+					{
 						voxels[0].Set(x, y, z, stepColor);
+					}
+				}
+			}
 		}
 
 		float3 ballCenter;
@@ -320,29 +310,43 @@ Scene::Scene(int sceneIndex)
 
 		SetSphere(ballCenter, 12.0f, 0x843a99);
 
-		uint wallColor =
-			(0x00 << 24) |
-			(120 << 16) |
-			(120 << 8) |
-			120;
+		uint wallColor = 0x666666;
 
 		int wallY = stepCount * stepHeight;
 		int wallZ = baseZ + stepCount * stepDepth;
 
 		for (int y = wallY; y < wallY + 40; y++)
+		{
 			for (int z = wallZ; z < wallZ + 5; z++)
+			{
 				for (int x = baseX; x < baseX + stepWidth; x++)
+				{
 					voxels[0].Set(x, y, z, wallColor);
+				}
+			}
+		}
 
 		for (int y = 0; y < wallY + 40; y++)
+		{
 			for (int z = baseZ; z < wallZ; z++)
+			{
 				for (int x = baseX - 2; x < baseX; x++)
+				{
 					voxels[0].Set(x, y, z, wallColor);
+				}
+			}
+		}
 
 		for (int y = 0; y < wallY + 40; y++)
+		{
 			for (int z = baseZ; z < wallZ; z++)
+			{
 				for (int x = baseX + stepWidth; x < baseX + stepWidth + 2; x++)
+				{
 					voxels[0].Set(x, y, z, wallColor);
+				}
+			}
+		}
 		voxels[0].BuildBrickGrid();
 		tlas = new TLAS(voxels, voxelCount);
 		tlas->Build();
@@ -489,38 +493,19 @@ Scene::Scene(int sceneIndex)
 
 		voxels[0].BuildBrickGrid();
 
-		//voxels[1].Resize(512);
-		//	for (int z = 0; z < 512; z++)
-		//	{
-		//		for (int y = 0; y < 512; y++)
-		//		{
-		//			for (int x = 0; x < 512; x++)
-		//			{
-		//				if (x < 2 || x > 509 || z > 509 || y < 2 || y > 509 || z < 2)
-		//				{
-		//					voxels[1].Set(x, y, z, 0x06ff0000);
-		//				}
-		//			}
-		//		}
-		//	}
-		//	voxels[1].BuildBrickGrid();
-
-
-
-
 		float3 centerCube = float3(8 / 512.0f, 8 / 512.0f, 8 / 512.0f);
-		float r = 20.0f / 512;
+		//float r = 20.0f / 512;
 
-		float speeds[4] = { 5.0f, 3.5f, 7.0f, 4.5f };
-		float radius[4] = { 25.0f, 35.0f, 43.0f, 50.0f };
-		uint materials[4] = { 0x06ffffff, 0x01aaaaaa, 0x02ffffff, 0x04ff8844 };
+		float const speeds[4] = { 5.0f, 3.5f, 7.0f, 4.5f };
+		float const radius[4] = { 25.0f, 35.0f, 43.0f, 50.0f };
+		uint const materials[4] = { 0x06ffffff, 0x01aaaaaa, 0x02ffffff, 0x04ff8844 };
 
 		for (int i = 0; i < 4; i++)
 		{
-			float r = radius[i] / 512.0f;
-			float3 center = centerCube;
+			float const r = radius[i] / 512.0f;
+			float3 const center = centerCube;
 			SetSphere(float3(80, 180, 80), 3, materials[i]);
-			int idx = spheres.size() - 1;
+			int const idx = static_cast<int>(spheres.size()) - 1;
 			AddSplineSegment(idx, center + float3(0, 0, -r), center + float3(r, 0, 0), center + float3(0, 0, r), center + float3(-r, 0, 0), speeds[i]);
 			AddSplineSegment(idx, center + float3(r, 0, 0), center + float3(0, 0, r), center + float3(-r, 0, 0), center + float3(0, 0, -r), speeds[i]);
 			AddSplineSegment(idx, center + float3(0, 0, r), center + float3(-r, 0, 0), center + float3(0, 0, -r), center + float3(r, 0, 0), speeds[i]);
@@ -588,10 +573,10 @@ Scene::Scene(int sceneIndex)
 		voxelCount = 0;
 		voxels = nullptr;
 		tlas = nullptr;
-		const int sphereCount = 1500;
+		int constexpr sphereCount = 1500;
 		int placed = 0;
 
-		const int curveSamples = 100;
+		int constexpr curveSamples = 100;
 		float heartX[curveSamples];
 		float heartY[curveSamples];
 		for (int i = 0; i < curveSamples; i++)
@@ -632,7 +617,7 @@ Scene::Scene(int sceneIndex)
 
 				SetSphere(randomPos, radius, 0x01ffffff);
 
-				int idx = spheres.size() - 1;
+				int idx = static_cast<int>(spheres.size()) - 1;
 				float3 offset = float3(0.001f, 0.001f, 0.001f);
 				AddSplineSegment(idx, randomPosWorld - offset, randomPosWorld, heartPosWorld, heartPosWorld + offset, 24.0f);
 
@@ -742,8 +727,6 @@ Scene::Scene(int sceneIndex)
 		SetSphere(float3(100, 50, 0), 1.0f, 0x060000ff);
 		voxels[0].BuildBrickGrid();
 
-		//SetSphere(float3(32, 5, 32), 5.0f, 0x04debdff);
-
 		tlas = new TLAS(voxels, voxelCount);
 		tlas->Build();
 		break;
@@ -841,8 +824,6 @@ Scene::Scene(int sceneIndex)
 		SetSphere(float3(32, 50, 50), 1, 0x06ff0000);
 		voxels[0].BuildBrickGrid();
 
-		//SetSphere(float3(32, 5, 32), 5.0f, 0x04debdff);
-
 		tlas = new TLAS(voxels, voxelCount);
 		tlas->Build();
 		break;
@@ -870,15 +851,15 @@ Scene::Scene(int sceneIndex)
 		}
 		voxels[0].BuildBrickGrid();
 
-		int sphereCount = 7;
-		float radius = 3.0f;
-		float spacing = 2.0f;
-		float sphereRowWidth = static_cast<float>(sphereCount) * (radius * 2.0f) + static_cast<float>(sphereCount - 1) * spacing;
-		float startX = 32.0f - sphereRowWidth / 2.0f + radius;
+		int constexpr sphereCount = 7;
+		float constexpr radius = 3.0f;
+		float constexpr spacing = 2.0f;
+		float constexpr sphereRowWidth = static_cast<float>(sphereCount) * (radius * 2.0f) + static_cast<float>(sphereCount - 1) * spacing;
+		float constexpr startX = 32.0f - sphereRowWidth / 2.0f + radius;
 
 		for (int i = 0; i < sphereCount; i++)
 		{
-			float x = startX + static_cast<float>(i) * (radius * 2 + spacing);
+			float const x = startX + static_cast<float>(i) * (radius * 2 + spacing);
 			SetSphere(float3(x, 2 + radius, 32), radius, 0x940101);
 		}
 
@@ -956,7 +937,7 @@ Scene::~Scene()
 	delete[] voxels;
 }
 
-void Scene::SetSphere(float3 center, float radius, uint material)
+void Scene::SetSphere(float3 const center, float const radius, uint const material)
 {
 	Sphere s;
 	s.center = center / WORLDSIZE;
@@ -967,18 +948,18 @@ void Scene::SetSphere(float3 center, float radius, uint material)
 	spheres.push_back(s);
 }
 
-void Scene::AddSplineSegment(int sphereIndex, float3 p0, float3 p1, float3 p2, float3 p3, float duration)
+void Scene::AddSplineSegment(int sphereIndex, float3 p0, float3 p1, float3 p2, float3 p3, float duration) // const
 {
-	float alpha = 0.5f;
-	float tension = 0.0f;
+	float constexpr alpha = 0.5f;
+	float constexpr tension = 0.0f;
 
-	float t01 = pow(length(p1 - p0), alpha);
-	float t12 = pow(length(p2 - p1), alpha);
-	float t23 = pow(length(p3 - p2), alpha);
+	float const t01 = pow(length(p1 - p0), alpha);
+	float const t12 = pow(length(p2 - p1), alpha);
+	float const t23 = pow(length(p3 - p2), alpha);
 
-	float3 m1 = (1.0f - tension) *
+	float3 const m1 = (1.0f - tension) *
 		(p2 - p1 + t12 * ((p1 - p0) / t01 - (p2 - p0) / (t01 + t12)));
-	float3 m2 = (1.0f - tension) *
+	float3 const m2 = (1.0f - tension) *
 		(p2 - p1 + t12 * ((p3 - p2) / t23 - (p3 - p1) / (t12 + t23)));
 
 	SEGMENT segment;
@@ -990,7 +971,7 @@ void Scene::AddSplineSegment(int sphereIndex, float3 p0, float3 p1, float3 p2, f
 	spheres[sphereIndex].splineSegments.push_back(segment);
 }
 
-float3 Scene::EvaluateSpline(Sphere& sphere, float t)
+float3 Scene::EvaluateSpline(const Sphere& sphere, float t)
 {
 	for (auto& segment : sphere.splineSegments)
 	{
@@ -1017,7 +998,7 @@ void Scene::UpdateSphereSpline(float deltaTime)
 		sphere.splineTime += deltaTime;
 
 		float totalDuration = 0.0f;
-		for (auto& segment : sphere.splineSegments)
+		for (const auto& segment : sphere.splineSegments)
 		{
 			totalDuration += segment.duration;
 		}
@@ -1043,30 +1024,12 @@ void Scene::FindNearest(Ray& ray, bool skipBVH, bool skipTLAS) const
 	}
 
 	// store sphere hit information before starting the voxel traversal.
-	float sphereT = ray.t;
-	bool sphereHit = ray.hitSphere;
-	uint sphereVoxel = ray.voxel;
-	float3 sphereN = ray.N;
+	float const sphereT = ray.t;
+	bool const sphereHit = ray.hitSphere;
+	uint const sphereVoxel = ray.voxel;
+	float3 const sphereN = ray.N;
 
-	ray.t = 1e34f;
-
-	//float bestTSphere = 1e34f;
-	//int bestSphere = -1;
-
-	//for (int i = 0; i < static_cast<int>(spheres.size()); i++)
-	//{
-	//	float distance = IntersectSphere(ray, spheres[i]);
-	//	if (distance < bestTSphere)
-	//	{
-	//		bestTSphere = distance;
-	//		bestSphere = i;
-	//	}
-	//}
-
-		//float sphereHit = 1e34f;
-	//uint sphereHitMaterial = 0;
-	//uint sphereHitAxis = 0;
-	//uint sphereAxis = 0;
+	ray.t = LARGE_FLOAT;
 
 	if (tlas && !skipTLAS)
 	{
@@ -1085,9 +1048,6 @@ void Scene::FindNearest(Ray& ray, bool skipBVH, bool skipTLAS) const
 	// if a voxel was hit and it's closer then a sphere hit, update the ray with voxel information.
 	else
 	{
-		//ray.t = voxelT;
-		//ray.axis = axis;
-		//ray.voxel = voxelHitMaterial;
 		ray.hitSphere = false;
 	}
 }
@@ -1103,7 +1063,6 @@ bool Scene::IsOccluded(Ray& ray) const
 	ray.O += EPSILON * ray.D;
 	ray.t -= EPSILON * 2.0f;
 
-	//ray.hitSphere = false;
 
 	//setup shadows for the spheres
 

@@ -7,19 +7,19 @@ DirectionalLight::DirectionalLight(const float3& direction, const float3& color)
 {
 }
 
-float3 DirectionalLight::SampleDirection(const float3& [[maybe_unused]]point) const
+float3 DirectionalLight::SampleDirection() const
 {
 	return -direction;
 }
 
-float3 DirectionalLight::Radiance(const float3& [[maybe_unused]]point) const
+float3 DirectionalLight::Radiance() const
 {
 	return color;
 }
 
 bool DirectionalLight::IsOccluded(const float3& point, const Scene& scene) const
 {
-	float3 dir = -direction;
+	float3 const dir = -direction;
 
 	Ray shadowRay(point, dir);
 	return scene.IsOccluded(shadowRay);

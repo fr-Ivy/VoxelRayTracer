@@ -19,7 +19,7 @@
 // Calculate light transport via a ray
 // -----------------------------------------------------------
 
-float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */)
+float3 Renderer::Trace(Ray& ray, int const depth, int, int /* we'll use these later */)
 {
 	if (depth == maxDepth)
 	{
@@ -33,43 +33,43 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 		//return float3(0, 1, 1); // or a fancy sky color
 	}
 
-	float3 N = ray.GetNormal();
-	float3 I = ray.IntersectionPoint();
-	float3 albedo = ray.GetAlbedo();
+	float3 const N = ray.GetNormal();
+	float3 const I = ray.IntersectionPoint();
+	float3 const albedo = ray.GetAlbedo();
 
 	if ((ray.voxel >> 24) == 6)
 	{
 		return albedo;
 	}
 
-	float3 lighting = Shade(N, I);
+	float3 const lighting = Shade(N, I);
 
 	//reflective material
 	if ((ray.voxel >> 24) == 1)
 	{
-		float3 reflected = reflectiveMat->calc(*this, ray, N, I, depth);
+		float3 const reflected = reflectiveMat->Calc(*this, ray, N, I, depth);
 		return reflected;
 	}
 
 	//dielectric material
 	else if ((ray.voxel >> 24) == 2)
 	{
-		float3 transmitted = dielectricMat->calc(*this, ray, N, I, depth);
+		float3 const transmitted = dielectricMat->Calc(*this, ray, N, I, depth);
 		return albedo * transmitted /** lighting*/;
 	}
 
 	//refractive material
 	else if ((ray.voxel >> 24) == 3)
 	{
-		float3 refracted = refractiveMat->calc(*this, ray, N, I, depth);
+		float3 const refracted = refractiveMat->Calc(*this, ray, N, I, depth);
 		return albedo * refracted /** lighting*/;
 	}
 
 	//hybrid material
 	else if ((ray.voxel >> 24) == 4)
 	{
-		std::shared_ptr<Hybrid> hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
-		float3 reflected = hybrid->calc(*this, ray, N, I, depth);
+		std::shared_ptr<Hybrid> const hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
+		float3 const reflected = hybrid->Calc(*this, ray, N, I, depth);
 		return (1.0f - hybrid->specular) * albedo * lighting + hybrid->specular * reflected;
 	}
 
@@ -99,7 +99,7 @@ float3 Renderer::Shade(const float3& N, const float3& I)
 		float3 direction, emission;
 		float distance, pdf;
 
-		if (light->sample(I, float2(RandomFloat(), RandomFloat()), direction, emission, distance, pdf))
+		if (light->Sample(I, float2(RandomFloat(), RandomFloat()), direction, emission, distance, pdf))
 		{
 			if (dot(N, direction) > 0.0f)
 			{
@@ -107,7 +107,7 @@ float3 Renderer::Shade(const float3& N, const float3& I)
 				if (!scene.IsOccluded(shadow))
 				{
 					float surface = max(0.0f, dot(N, direction));
-					float3 lightNormal = light->getNormal();
+					float3 lightNormal = light->GetNormal();
 					float lightDistance = max(0.0f, -dot(direction, lightNormal));
 
 					float geometry = (surface * lightDistance) / (distance * distance);
@@ -123,13 +123,13 @@ float3 Renderer::Shade(const float3& N, const float3& I)
 	// for directional light
 	if (directionalLight->color.x > 0 || directionalLight->color.y > 0 || directionalLight->color.z > 0)
 	{
-		lightDirection = directionalLight->SampleDirection(I);
+		lightDirection = directionalLight->SampleDirection();
 
 		if (dot(N, lightDirection) > 0.0f)
 		{
 			if (!directionalLight->IsOccluded(I, scene))
 			{
-				float3 lightRadiance = directionalLight->Radiance(I);
+				float3 lightRadiance = directionalLight->Radiance();
 				float cosa = max(0.0f, dot(N, lightDirection));
 				color += lightRadiance * cosa;
 			}
@@ -609,9 +609,9 @@ void Renderer::Tick(float deltaTime)
 		audio.Play();
 		demoTime += deltaTime * 0.001f;
 
-		static const float sceneChangesForBlackFade[] = { 26.5f, 48.0f, 69.0f, 93.0f, 120.0f, 114.0f, 125.0f, 130.5f, 136.0f, 141.0f, 146.0f, 151.0f, 157.0f };
+		static constexpr float sceneChangesForBlackFade[] = { 26.5f, 48.0f, 69.0f, 93.0f, 120.0f, 114.0f, 125.0f, 130.5f, 136.0f, 141.0f, 146.0f, 151.0f, 157.0f };
 
-		const float fadeDuration = 0.75f;
+		constexpr float fadeDuration = 0.75f;
 		fadeFactor = 1.0f;
 		for (float sceneChange : sceneChangesForBlackFade)
 		{
@@ -877,43 +877,6 @@ void Renderer::Tick(float deltaTime)
 		}
 	}
 
-
-	if (scene.sceneIndex == 6)
-	{
-		if (playCameraAnimation || playScene || playDemo)
-		{
-			//float cameraDuration = 8.0f;
-			//cameraTime += (deltaTime / 1000.0f);
-			//float time = cameraTime / cameraDuration;
-
-			//if (time > 1.0f)
-			//{
-			//	cameraTime = 0.0f;
-			//}
-
-			//const int pointsCount = 4;
-
-			//float3 cameraPoints[4] =
-			//{
-			//	float3(0.5f + 1.2f, 0.5f, 0.5f),
-			//	float3(0.5f, 0.5f, 0.5f + 1.2f),
-			//	float3(0.5f - 1.2f, 0.5f, 0.5f),
-			//	float3(0.5f, 0.5f, 0.5f - 1.2f)
-			//};
-
-			//int   segment = static_cast<int>(time * pointsCount);
-			//float t = time * pointsCount - segment;
-
-			//float3 p0 = cameraPoints[(segment - 1 + pointsCount) % pointsCount];
-			//float3 p1 = cameraPoints[(segment + pointsCount) % pointsCount];
-			//float3 p2 = cameraPoints[(segment + 1 + pointsCount) % pointsCount];
-			//float3 p3 = cameraPoints[(segment + 2 + pointsCount) % pointsCount];
-
-			//camera.CatmullRomSplines(p0, p1, p2, p3, t);
-			//changedSetting = true;
-		}
-	}
-
 	if (scene.sceneIndex == 8)
 	{
 		if (playObjectAnimation || playScene || playDemo)
@@ -1023,29 +986,6 @@ void Renderer::Tick(float deltaTime)
 		scene.bvh->BuildBVH(scene);
 	}
 
-
-	//	Timer t;
-	//	// pixel loop: lines are executed as OpenMP parallel tasks (disabled in DEBUG)
-	//#pragma omp parallel for schedule(dynamic)
-	//	for (int y = 0; y < SCRHEIGHT; y++)
-	//	{
-	//		// trace a primary ray for each pixel on the line
-	//		for (int x = 0; x < SCRWIDTH; x++)
-	//		{
-	//			Ray r = camera.GetPrimaryRay((float)x, (float)y);
-	//			float3 pixel = Trace(r);
-	//			screen->pixels[x + y * SCRWIDTH] = RGBF32_to_RGB8(pixel);
-	//		}
-	//	}
-	//	// performance report - running average - ms, MRays/s
-	//	static float avg = 10, alpha = 1;
-	//	avg = (1 - alpha) * avg + alpha * t.elapsed() * 1000;
-	//	if (alpha > 0.05f) alpha *= 0.5f;
-	//	float fps = 1000.0f / avg, rps = (SCRWIDTH * SCRHEIGHT) / avg;
-	//	printf("%5.2fms (%.1ffps) - %.1fMrays/s\n", avg, fps, rps / 1000);
-	//	// handle user input
-	//	camera.HandleInput(deltaTime);
-
 		// high-resolution timer, see template.h
 	Timer t;
 	const float scale = 1.0f / spp++;
@@ -1081,9 +1021,22 @@ void Renderer::Tick(float deltaTime)
 
 	if (demoTime > 0.0f && demoTime < 10.0f)
 	{
-		char pointsmsg[256];
-		snprintf(pointsmsg, 256, "TAKE ONE");
-		screen->PrintScaled(pointsmsg, 250, 100, 5, 5, 0xffffff);
+		float fullTextStart = 2.0f;
+		float fullTextEnd = 8.0f;
+
+		float titleFade = 1.0f;
+		if (demoTime < fullTextStart)
+		{
+			titleFade = demoTime / fullTextStart;
+		}
+		else if (demoTime > fullTextEnd)
+		{
+			titleFade = 1.0f - (demoTime - fullTextEnd) / (10.0f - fullTextEnd);
+		}
+
+		uint brightnessText = static_cast<uint>(titleFade * 255);
+		uint color = (0x00 << 24) | (brightnessText << 16) | (brightnessText << 8) | brightnessText;
+		screen->PrintScaled("TAKE ONE", 250, 350, 5, 5, color);
 	}
 }
 
@@ -1448,7 +1401,7 @@ void Renderer::UI()
 
 		if (ImGui::BeginTabItem("Hybrid"))
 		{
-			std::shared_ptr<Hybrid> hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
+			std::shared_ptr<Hybrid> const hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
 
 			if (hybrid)
 			{
@@ -1461,7 +1414,7 @@ void Renderer::UI()
 
 		if (ImGui::BeginTabItem("dielectric"))
 		{
-			std::shared_ptr<Dielectric> dielectric = std::dynamic_pointer_cast<Dielectric>(dielectricMat);
+			std::shared_ptr<Dielectric> const dielectric = std::dynamic_pointer_cast<Dielectric>(dielectricMat);
 
 			if (dielectric)
 			{
@@ -1496,10 +1449,10 @@ void Renderer::UI()
 	}
 }
 
-float3 Renderer::SampleSky(float3& distance)
+float3 Renderer::SampleSky(const float3& distance) const
 {
-	float u = atan2f(distance.z, distance.x) * INV2PI + 0.5f;
-	float v = acosf(distance.y) * INVPI;
+	float const u = atan2f(distance.z, distance.x) * INV2PI + 0.5f;
+	float const v = acosf(distance.y) * INVPI;
 
 	//v = 1.0f - v;
 
@@ -1509,15 +1462,15 @@ float3 Renderer::SampleSky(float3& distance)
 	iu = max(0, min(iu, skydome->width - 1));
 	iv = max(0, min(iv, skydome->height - 1));
 
-	uint p = skydome->pixels[iu + iv * skydome->width];
+	uint const pixel = skydome->pixels[iu + iv * skydome->width];
 
-	float r = ((p >> 16) & 255) / 255.0f;
-	float g = ((p >> 8) & 255) / 255.0f;
-	float b = (p & 255) / 255.0f;
+	float const r = ((pixel >> 16) & 255) / 255.0f;
+	float const g = ((pixel >> 8) & 255) / 255.0f;
+	float const b = (pixel & 255) / 255.0f;
 	return float3(r, g, b);
 }
 
-float3 Renderer::SampleTexture(float u, float v)
+float3 Renderer::SampleTexture(float u, float v) const
 {
 	if (!texture || !texture->pixels)
 	{
@@ -1533,7 +1486,7 @@ float3 Renderer::SampleTexture(float u, float v)
 	x = clamp(x, 0, texture->width - 1);
 	y = clamp(y, 0, texture->height - 1);
 
-	uint pixel = texture->pixels[x + y * texture->width];
+	uint const pixel = texture->pixels[x + y * texture->width];
 
 	float r = ((pixel >> 16) & 255) / 255.0f;
 	float g = ((pixel >> 8) & 255) / 255.0f;
@@ -1543,26 +1496,26 @@ float3 Renderer::SampleTexture(float u, float v)
 }
 
 
-float3 Renderer::Triplanar(float3 I, float3 N)
+float3 Renderer::Triplanar(float3 const I, float3 const N) const
 {
-	float scale = 25.0f;
-	float3 local = I * scale;
+	float constexpr scale = 25.0f;
+	float3 const local = I * scale;
 
-	float3 n = float3(fabs(N.x), fabs(N.y), fabs(N.z));
-	float sum = n.x + n.y + n.z;
-	float bx = n.x / sum;
-	float by = n.y / sum;
-	float bz = n.z / sum;
+	float3 const n = float3(fabs(N.x), fabs(N.y), fabs(N.z));
+	float const sum = n.x + n.y + n.z;
+	float const bx = n.x / sum;
+	float const by = n.y / sum;
+	float const bz = n.z / sum;
 
 
 	//X projection for YZ plane
-	float3 cX = SampleTexture(local.y, local.z);
+	float3 const cX = SampleTexture(local.y, local.z);
 
 	//Y projection for XZ plane
-	float3 cY = SampleTexture(local.x, local.z);
+	float3 const cY = SampleTexture(local.x, local.z);
 
 	//Z projection for XY plane
-	float3 cZ = SampleTexture(local.x, local.y);
+	float3 const cZ = SampleTexture(local.x, local.y);
 
 	return cX * bx + cY * by + cZ * bz;
 }

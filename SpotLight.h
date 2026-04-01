@@ -1,8 +1,6 @@
 #pragma once
 
-#include "Lighting.h"
-
-class SpotLight : public Lighting
+class SpotLight
 {
 public:
 	SpotLight(const float3& pos, const float3& direction, const float3& color, float innerCutOff, float outerCutOff);

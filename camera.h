@@ -37,7 +37,7 @@ public:
 	float3 FishEyeLens(float3 dir, float3 right, float3 up, float3 front, float fov_degrees);
 	bool HandleInput( const float t );
 	void AddSplineSegment(float3 p0, float3 p1, float3 p2, float3 p3, float duration);
-	float3 EvaluateSpline(float t);
+	float3 EvaluateSpline(float t) const;
 	void UpdateSpline(float deltaTime, float3 lookAtTarget);
 	void LookAt();
 	float aspect = (float)SCRWIDTH / (float)SCRHEIGHT;

@@ -24,9 +24,9 @@ public:
 	void SetupScenes(int sceneIndex);
 	void Tick( float deltaTime );
 	void UI();
-	float3 SampleSky(float3& distance);
-	float3 SampleTexture(float u, float v);
-	float3 Triplanar(float3 I, float3 N);
+	float3 SampleSky(const float3& distance) const;
+	float3 SampleTexture(float u, float v) const;
+	float3 Triplanar(float3 I, float3 N) const;
 	void Shutdown() { /* nothing here for now */ }
 	// input handling
 	void MouseUp( int button ) { button = 0; /* implement if you want to detect mouse button presses */ }
@@ -56,7 +56,7 @@ public:
 	bool playCameraAnimation = false;
 	bool playObjectAnimation = false;
 	bool playScene = false;
-	bool playDemo = true;
+	bool playDemo = false;
 
 	float cameraTime = 0.0f;
 	float demoTime = 0.0f;
