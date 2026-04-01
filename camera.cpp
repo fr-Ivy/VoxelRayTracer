@@ -6,8 +6,18 @@ Camera::Camera()
 	FILE* f = fopen( "camera.bin", "rb" );
 	if (f)
 	{
-		fread( this, 1, sizeof( Camera ), f );
+		fread(&camPos, sizeof(float3), 1, f);
+		fread(&camTarget, sizeof(float3), 1, f);
+		fread(&topLeft, sizeof(float3), 1, f);
+		fread(&topRight, sizeof(float3), 1, f);
+		fread(&bottomLeft, sizeof(float3), 1, f);
+		fread(&cameraMode, sizeof(CAMERAMODE), 1, f);
+		fread(&fov, sizeof(float), 1, f);
+		fread(&apertureRadius, sizeof(float), 1, f);
+		fread(&focusDistance, sizeof(float), 1, f);
 		fclose( f );
+
+		LookAt();
 	}
 	else
 	{
@@ -24,7 +34,15 @@ Camera::~Camera()
 {
 	// save current camera
 	FILE* f = fopen( "camera.bin", "wb" );
-	fwrite( this, 1, sizeof( Camera ), f );
+	fwrite(&camPos, sizeof(float3), 1, f);
+	fwrite(&camTarget, sizeof(float3), 1, f);
+	fwrite(&topLeft, sizeof(float3), 1, f);
+	fwrite(&topRight, sizeof(float3), 1, f);
+	fwrite(&bottomLeft, sizeof(float3), 1, f);
+	fwrite(&cameraMode, sizeof(CAMERAMODE), 1, f);
+	fwrite(&fov, sizeof(float), 1, f);
+	fwrite(&apertureRadius, sizeof(float), 1, f);
+	fwrite(&focusDistance, sizeof(float), 1, f);
 	fclose( f );
 }
 
@@ -194,14 +212,14 @@ bool Camera::HandleInput( const float t )
 	return true;
 }
 
-void Camera::CatmullRomSplines(float3 p0, float3 p1, float3 p2, float3 p3, float t)
+void Camera::AddSplineSegment(float3 p0, float3 p1, float3 p2, float3 p3, float duration)
 {
 	float alpha = 0.5f;
 	float tension = 0.0f;
 
-	float t01 = pow(length(p1 - p0), alpha);
-	float t12 = pow(length(p2 - p1), alpha);
-	float t23 = pow(length(p3 - p2), alpha);
+	float t01 = pow(max(length(p1 - p0), 0.0001f), alpha);
+	float t12 = pow(max(length(p2 - p1), 0.0001f), alpha);
+	float t23 = pow(max(length(p3 - p2), 0.0001f), alpha);
 
 	float3 m1 = (1.0f - tension) *
 		(p2 - p1 + t12 * ((p1 - p0) / t01 - (p2 - p0) / (t01 + t12)));
@@ -213,12 +231,47 @@ void Camera::CatmullRomSplines(float3 p0, float3 p1, float3 p2, float3 p3, float
 	segment.b = -3.0f * (p1 - p2) - m1 - m1 - m2;
 	segment.c = m1;
 	segment.d = p1;
+	segment.duration = duration;
+	splineSegments.push_back(segment);
+}
 
-	camPos = segment.a * t * t * t + segment.b * t * t + segment.c * t + segment.d;
-	camTarget = float3(0.5f, 0.3f, 0.5f);
+float3 Camera::EvaluateSpline(float t)
+{
+	for (auto& segment : splineSegments)
+	{
+		if (t <= segment.duration)
+		{
+			float progress = t / segment.duration;
+			return segment.a * progress * progress * progress + segment.b * progress * progress + segment.c * progress + segment.d;
+		}
+
+		t -= segment.duration;
+	}
+	return splineSegments.back().d;
+}
+
+void Camera::UpdateSpline(float deltaTime, float3 lookAtTarget)
+{
+	if (splineSegments.empty())
+	{
+		return;
+	}
+	splineTime += deltaTime;
+
+	float totalDuration = 0;
+	for (auto& segment : splineSegments)
+	{
+		totalDuration += segment.duration;
+	}
+	if (splineTime > totalDuration)
+	{
+		splineTime -= totalDuration;
+	}
+
+	camPos = EvaluateSpline(splineTime);
+	camTarget = lookAtTarget;
 
 	LookAt();
-	
 }
 
 void Camera::LookAt()

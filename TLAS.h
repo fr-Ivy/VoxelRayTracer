@@ -16,6 +16,7 @@ public:
 	TLAS(Voxel* voxel, int N);
 	void Build();
 	void Intersect(Ray& ray);
+	bool IsOccluded(Ray& ray);
 	int FindBestMatch(int* list, int N, int A);
 
 private:

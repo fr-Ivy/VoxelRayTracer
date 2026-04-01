@@ -23,6 +23,8 @@ Audio::Audio()
 
 Audio::~Audio()
 {
+	ma_sound_uninit(&music);
+	ma_engine_uninit(&engine);
 }
 
 void Audio::Play()

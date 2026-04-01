@@ -542,6 +542,7 @@ bool Voxel::IsOccluded(Ray& ray)
 	localRay.D = TransformVector(ray.D, invertedTransform);
 	localRay.rD = float3(1.0f / localRay.D.x, 1.0f / localRay.D.y, 1.0f / localRay.D.z);
 	localRay.Dsign = float3(localRay.D.x < 0 ? 1.0f : 0.0f, localRay.D.y < 0 ? 1.0f : 0.0f, localRay.D.z < 0 ? 1.0f : 0.0f);
+	localRay.t = ray.t;
 
 	DDAState brickDDA;
 

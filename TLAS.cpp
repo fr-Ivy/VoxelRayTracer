@@ -115,6 +115,64 @@ void TLAS::Intersect(Ray& ray)
 	}
 }
 
+bool TLAS::IsOccluded(Ray& ray)
+{
+	TLASNode* node = &tlasNode[0];
+	TLASNode* stack[64];
+	uint stackPtr = 0;
+	while (true)
+	{
+		if (node->IsLeaf())
+		{
+			if (blas[node->BLAS].IsOccluded(ray))
+			{
+				return true;
+			}
+			if (stackPtr == 0)
+			{
+				break;
+			}
+			else
+			{
+				node = stack[--stackPtr];
+			}
+			continue;
+		}
+		TLASNode* child1 = &tlasNode[node->leftRight & 0xffff];
+		TLASNode* child2 = &tlasNode[node->leftRight >> 16];
+
+		float distance1, distance2;
+		IntersectAABB(ray, child1->aabbMin, child1->aabbMax, child2->aabbMin, child2->aabbMax, distance1, distance2);
+
+		if (distance1 > distance2)
+		{
+			swap(distance1, distance2);
+			swap(child1, child2);
+		}
+
+		if (distance1 == 1e30f)
+		{
+			if (stackPtr == 0)
+			{
+				break;
+			}
+			else
+			{
+				node = stack[--stackPtr];
+			}
+		}
+		else
+		{
+			node = child1;
+			if (distance2 != 1e30f)
+			{
+				stack[stackPtr++] = child2;
+			}
+		}
+	}
+	return false;
+}
+
 int TLAS::FindBestMatch(int* list, int N, int A)
 {
 	float smallest = 1e30f;

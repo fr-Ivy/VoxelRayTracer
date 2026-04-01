@@ -21,6 +21,7 @@ public:
 	void Init();
 	float3 Trace( Ray& ray, int = 0, int = 0, int = 0 );
 	float3 Shade(const float3& N, const float3& I);
+	void SetupScenes(int sceneIndex);
 	void Tick( float deltaTime );
 	void UI();
 	float3 SampleSky(float3& distance);
@@ -51,10 +52,17 @@ public:
 	Audio audio;
 
 	bool changedSetting = false;
-	float cameraTime = 0.0f;
 	bool physics = false;
 	bool playCameraAnimation = false;
 	bool playObjectAnimation = false;
+	bool playScene = false;
+	bool playDemo = true;
+
+	float cameraTime = 0.0f;
+	float demoTime = 0.0f;
+	float fadeFactor = 1.0f;
+
+	//float3 color;
 
 	float fps;
 	int maxDepth = 1;
@@ -72,11 +80,14 @@ public:
 
 	Surface* texture;
 	Surface* skydome;
+	Surface* skydome2;
 
 	bool pinhole = false;
 	bool panini = false;
 	bool fishEye = false;
 	bool aperture = false;
+
+	float animationTime = 0.0f;
 };
 
 } // namespace Tmpl8

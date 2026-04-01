@@ -24,6 +24,15 @@ class BVH;
 class Voxel;
 class TLAS;
 
+struct SEGMENT
+{
+	float3 a;
+	float3 b;
+	float3 c;
+	float3 d;
+	float duration;
+};
+
 struct Sphere
 {
 	float3 center;
@@ -31,6 +40,8 @@ struct Sphere
 	uint material;
 	float3 velocity;
 	float3 previousCenter;
+	std::vector<SEGMENT> splineSegments;
+	float splineTime = 0.0f;
 };
 
 namespace Tmpl8 {
@@ -40,18 +51,23 @@ namespace Tmpl8 {
 	public:
 		std::vector<Sphere> spheres;
 
-		Scene(int sceneIndex = 6);
+		Scene(int sceneIndex = 13);
 		~Scene();
-		void FindNearest(Ray& ray, bool skipBVH = false) const;
+		void FindNearest(Ray& ray, bool skipBVH = false, bool skipTLAS = false) const;
 		bool IsOccluded(Ray& ray) const;
 
 		void SetSphere(float3 center, float radius, uint material);
+		void AddSplineSegment(int sphereIndex, float3 p0, float3 p1, float3 p2, float3 p3, float duration);
+		float3 EvaluateSpline(Sphere& sphere, float t);
+		void UpdateSphereSpline(float deltaTime);
 
 		bool shadows = true;
 		BVH* bvh;
 		Voxel* voxels;
 		int voxelCount;
 		TLAS* tlas;
+
+		int sceneIndex = -1;
 	private:
 
 	};

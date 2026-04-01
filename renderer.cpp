@@ -37,6 +37,11 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 	float3 I = ray.IntersectionPoint();
 	float3 albedo = ray.GetAlbedo();
 
+	if ((ray.voxel >> 24) == 6)
+	{
+		return albedo;
+	}
+
 	float3 lighting = Shade(N, I);
 
 	//reflective material
@@ -57,7 +62,7 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 	else if ((ray.voxel >> 24) == 3)
 	{
 		float3 refracted = refractiveMat->calc(*this, ray, N, I, depth);
-		return albedo * refracted * lighting;
+		return albedo * refracted /** lighting*/;
 	}
 
 	//hybrid material
@@ -74,11 +79,6 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 		return Triplanar(I, N) * lighting;
 	}
 
-	else if ((ray.voxel >> 24) == 6)
-	{
-		return albedo;
-	}
-
 	//default
 	else
 	{
@@ -89,10 +89,12 @@ float3 Renderer::Trace(Ray& ray, int depth, int, int /* we'll use these later */
 
 float3 Renderer::Shade(const float3& N, const float3& I)
 {
-	float3 color = float3(0.15f);
-
-	for (AreaLight* light : areaLights)
+	float3 color = float3(0.0f);
+	if (!areaLights.empty())
 	{
+		int lightIndex = min(static_cast<int>(RandomFloat() * static_cast<float>(areaLights.size())), static_cast<int>(areaLights.size() - 1));
+		AreaLight* light = areaLights[lightIndex];
+
 		// for area lights
 		float3 direction, emission;
 		float distance, pdf;
@@ -110,22 +112,27 @@ float3 Renderer::Shade(const float3& N, const float3& I)
 
 					float geometry = (surface * lightDistance) / (distance * distance);
 
-					color += emission * geometry / pdf;
+					color += emission * geometry / pdf * static_cast<float>(areaLights.size());
 				}
 			}
 		}
 	}
 
-	// for directional light
-	float3 lightDirection = directionalLight->SampleDirection(I);
+	float3 lightDirection = float3(0);
 
-	if (dot(N, lightDirection) > 0.0f)
+	// for directional light
+	if (directionalLight->color.x > 0 || directionalLight->color.y > 0 || directionalLight->color.z > 0)
 	{
-		if (!directionalLight->IsOccluded(I, scene))
+		lightDirection = directionalLight->SampleDirection(I);
+
+		if (dot(N, lightDirection) > 0.0f)
 		{
-			float3 lightRadiance = directionalLight->Radiance(I);
-			float cosa = max(0.0f, dot(N, lightDirection));
-			color += lightRadiance * cosa;
+			if (!directionalLight->IsOccluded(I, scene))
+			{
+				float3 lightRadiance = directionalLight->Radiance(I);
+				float cosa = max(0.0f, dot(N, lightDirection));
+				color += lightRadiance * cosa;
+			}
 		}
 	}
 
@@ -147,7 +154,7 @@ float3 Renderer::Shade(const float3& N, const float3& I)
 	}
 
 	// for spotlights
-	for (PointLight& light : pointLights)
+	for (SpotLight& light : spotLights)
 	{
 		//for other lights
 		lightDirection = light.SampleDirection(I);
@@ -164,6 +171,395 @@ float3 Renderer::Shade(const float3& N, const float3& I)
 	}
 
 	return color;
+}
+
+void Renderer::SetupScenes(int sceneIndex)
+{
+	areaLights.clear();
+	pointLights.clear();
+	spotLights.clear();
+	camera.splineSegments.clear();
+	camera.splineTime = 0.0f;
+
+	directionalLight->direction = float3(0);
+	directionalLight->color = float3(0);
+
+	switch (sceneIndex)
+	{
+	case 6:
+	{
+		maxDepth = 3;
+		scene.shadows = true;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		break;
+	}
+	case 7:
+	{
+		maxDepth = 1;
+		scene.shadows = true;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		pointLights.push_back(PointLight(float3(0.5f, 0.7f, 1.0f), float3(0, 1, 0)));
+		break;
+	}
+	case 8:
+	{
+		camera.aperture = false;
+		camera.apertureRadius = 0.0f;
+		maxDepth = 1;
+		scene.shadows = true;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		float3 A = float3(226 / 512.0f, 50 / 512.0f, -0 / 512.0f);
+		float3 B = float3(226 / 512.0f, 50 / 512.0f, -0 / 512.0f);
+
+		camera.AddSplineSegment(B, A, B, A, 2.5f);
+		camera.AddSplineSegment(A, B, A, B, 2.5f);
+		break;
+	}
+	case 12:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Dielectric> dielectric = std::dynamic_pointer_cast<Dielectric>(dielectricMat);
+		dielectric->index2 = 1.46f;
+
+		float3 A = float3(30 / 512.0f, 40 / 512.0f, -60 / 512.0f);
+		float3 B = float3(-80 / 512.0f, 60 / 512.0f, -100 / 512.0f);
+
+		camera.AddSplineSegment(A, A, B, B, 21.5f);
+		camera.splineTime = -1.5f;
+		break;
+	}
+	case 13:
+	{
+		camera.aperture = false;
+		camera.apertureRadius = 0.0f;
+		camera.cameraMode = CAMERAMODE::PINHOLE;
+		scene.shadows = false;
+		maxDepth = 1;
+		float3 A = float3(0.0075f, 0.012f, 0.13f / 4);
+		float3 B = float3(0.0075f, 0.012f, 0.23f / 4);
+
+		camera.AddSplineSegment(B, A, B, A, 26.5f);
+
+		int lightPositions[] = { 2, 15, 27 };
+		for (int lights : lightPositions)
+		{
+			areaLights.push_back(new QuadLight(
+				float3(1.0f / 512, 12.0f / 512, static_cast<float>(lights) / 512.0f),
+				float3(7.0f / 512, 0.0f, 0.0f),
+				float3(0.0f, 0.0f, 2.0f / 512),
+				float3(1, 1, 1)));
+		}
+		break;
+	}
+	case 14:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		float3 A = float3(1.0f, 1.0f, 1.7f);
+		float3 B = float3(0.8f, 0.8f, 1.5f);
+
+		camera.AddSplineSegment(B, A, B, A, 24.0f);
+		break;
+	}
+	case 15:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Dielectric> dielectric = std::dynamic_pointer_cast<Dielectric>(dielectricMat);
+		dielectric->index2 = 1.46f;
+
+		float3 A = float3(50 / 512.0f, 25 / 512.0f, -80 / 512.0f);
+		float3 B = float3(-120 / 512.0f, 25 / 512.0f, -10 / 512.0f);
+
+		camera.AddSplineSegment(B, A, B, A, 2.75f);
+		camera.AddSplineSegment(A, B, A, B, 2.75f);
+
+		break;
+	}
+	case 16:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Dielectric> dielectric = std::dynamic_pointer_cast<Dielectric>(dielectricMat);
+		dielectric->index2 = 1.33f;
+
+		float3 A = float3(50 / 512.0f, 25 / 512.0f, -80 / 512.0f);
+		float3 B = float3(-120 / 512.0f, 25 / 512.0f, -10 / 512.0f);
+
+		camera.AddSplineSegment(B, A, B, A, 2.75f);
+		camera.AddSplineSegment(A, B, A, B, 2.75f);
+		break;
+	}
+	case 17:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Dielectric> dielectric = std::dynamic_pointer_cast<Dielectric>(dielectricMat);
+		dielectric->index2 = 2.40f;
+
+		float3 A = float3(50 / 512.0f, 25 / 512.0f, -80 / 512.0f);
+		float3 B = float3(-120 / 512.0f, 25 / 512.0f, -10 / 512.0f);
+
+		camera.AddSplineSegment(B, A, B, A, 2.5f);
+		camera.AddSplineSegment(A, B, A, B, 2.5f);
+		break;
+	}
+	case 18:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Dielectric> dielectric = std::dynamic_pointer_cast<Dielectric>(dielectricMat);
+		dielectric->index2 = 1.00f;
+
+		float3 A = float3(50 / 512.0f, 25 / 512.0f, -80 / 512.0f);
+		float3 B = float3(-120 / 512.0f, 25 / 512.0f, -10 / 512.0f);
+
+		camera.AddSplineSegment(B, A, B, A, 2.5f);
+		camera.AddSplineSegment(A, B, A, B, 2.5f);
+		break;
+	}
+	case 19:
+	{
+		scene.shadows = true;
+		maxDepth = 8;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+
+		float3 A = float3(50 / 512.0f, 25 / 512.0f, -80 / 512.0f);
+		float3 B = float3(-120 / 512.0f, 25 / 512.0f, -10 / 512.0f);
+
+		camera.AddSplineSegment(B, A, B, A, 2.5f);
+		camera.AddSplineSegment(A, B, A, B, 2.5f);
+
+		break;
+	}
+	case 20:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		pointLights.push_back(PointLight(float3(32.0f / 512, 50.0f / 512, 100.0f / 512), float3(1, 0, 0)));
+		pointLights.push_back(PointLight(float3(-32.0f / 512, 50.0f / 512, -32.0f / 512), float3(0, 1, 0)));
+		pointLights.push_back(PointLight(float3(100.0f / 512, 50.0f / 512, 0), float3(0, 0, 1)));
+		skydome = skydome2;
+
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.5f);
+		camera.AddSplineSegment(A, B, C, D, 1.5f);
+		camera.AddSplineSegment(B, C, D, A, 1.5f);
+		camera.AddSplineSegment(C, D, A, B, 1.5f);
+		break;
+	}
+	case 21:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		spotLights.push_back(SpotLight(float3(32.0f / 512, 50.0f / 512, 32.0f / 512), float3(0, -1, 0), float3(1, 1, 1), 10, 20));
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.25f);
+		camera.AddSplineSegment(A, B, C, D, 1.25f);
+		camera.AddSplineSegment(B, C, D, A, 1.25f);
+		camera.AddSplineSegment(C, D, A, B, 1.25f);
+		break;
+	}
+	case 22:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		spotLights.push_back(SpotLight(float3(32.0f / 512, 50.0f / 512, 50.0f / 512), float3(0, -1, -0.5), float3(1, 1, 1), 10, 20));
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.25f);
+		camera.AddSplineSegment(A, B, C, D, 1.25f);
+		camera.AddSplineSegment(B, C, D, A, 1.25f);
+		camera.AddSplineSegment(C, D, A, B, 1.25f);
+		break;
+	}
+	case 23:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.25f);
+		camera.AddSplineSegment(A, B, C, D, 1.25f);
+		camera.AddSplineSegment(B, C, D, A, 1.25f);
+		camera.AddSplineSegment(C, D, A, B, 1.25f);
+		spotLights.push_back(SpotLight(float3(32.0f / 512, 50.0f / 512, 50.0f / 512), float3(0, -1, -0.5), float3(1, 0, 0), 10, 20));
+		break;
+	}
+	case 24:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(0.2f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		camera.aperture = true;
+		camera.focusDistance = 0.2f;
+		camera.apertureRadius = 0.003f;
+		changedSetting = true;
+		float3 A = float3(-0.15f, 0.05f, -0.05f);
+		camera.AddSplineSegment(A, A, A, A, 10.0f);
+		break;
+	}
+	case 25:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(-1.0f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		camera.aperture = false;
+		camera.apertureRadius = 0.0f;
+		std::shared_ptr<Hybrid> hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
+		hybrid->roughness = 0.0f;
+		hybrid->specular = 1.0f;
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.25f);
+		camera.AddSplineSegment(A, B, C, D, 1.25f);
+		camera.AddSplineSegment(B, C, D, A, 1.25f);
+		camera.AddSplineSegment(C, D, A, B, 1.25f);
+		changedSetting = true;
+		break;
+	}
+	case 26:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(-1.0f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Hybrid> hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
+		hybrid->roughness = 0.0f;
+		hybrid->specular = 0.5f;
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.375f);
+		camera.AddSplineSegment(A, B, C, D, 1.375f);
+		camera.AddSplineSegment(B, C, D, A, 1.375f);
+		camera.AddSplineSegment(C, D, A, B, 1.375f);
+		changedSetting = true;
+		break;
+	}
+	case 27:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(-1.0f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Hybrid> hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
+		hybrid->roughness = 0.0f;
+		hybrid->specular = 0.25f;
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.375f);
+		camera.AddSplineSegment(A, B, C, D, 1.375f);
+		camera.AddSplineSegment(B, C, D, A, 1.375f);
+		camera.AddSplineSegment(C, D, A, B, 1.375f);
+		changedSetting = true;
+		break;
+	}
+	case 28:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(-1.0f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Hybrid> hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
+		hybrid->roughness = 0.1f;
+		hybrid->specular = 1.0f;
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.25f);
+		camera.AddSplineSegment(A, B, C, D, 1.25f);
+		camera.AddSplineSegment(B, C, D, A, 1.25f);
+		camera.AddSplineSegment(C, D, A, B, 1.25f);
+		changedSetting = true;
+		break;
+	}
+	case 29:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(-1.0f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Hybrid> hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
+		hybrid->roughness = 0.25f;
+		hybrid->specular = 1.0f;
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.25f);
+		camera.AddSplineSegment(A, B, C, D, 1.25f);
+		camera.AddSplineSegment(B, C, D, A, 1.25f);
+		camera.AddSplineSegment(C, D, A, B, 1.25f);
+		changedSetting = true;
+		break;
+	}
+	case 30:
+	{
+		scene.shadows = true;
+		maxDepth = 4;
+		directionalLight->direction = normalize(float3(-1.0f, -0.5f, 1.0f));
+		directionalLight->color = float3(1);
+		std::shared_ptr<Hybrid> hybrid = std::dynamic_pointer_cast<Hybrid>(hybridMat);
+		hybrid->roughness = 0.1f;
+		hybrid->specular = 0.5f;
+		float3 A = float3(-81 / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 B = float3((81 + 64) / 512.0f, 70 / 512.0f, -81 / 512.0f);
+		float3 C = float3((81 + 64) / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+		float3 D = float3(-81 / 512.0f, 70 / 512.0f, (81 + 64) / 512.0f);
+
+		camera.AddSplineSegment(D, A, B, C, 1.25f);
+		camera.AddSplineSegment(A, B, C, D, 1.25f);
+		camera.AddSplineSegment(B, C, D, A, 1.25f);
+		camera.AddSplineSegment(C, D, A, B, 1.25f);
+		changedSetting = true;
+		break;
+	}
+	default:
+		break;
+	}
 }
 
 // -----------------------------------------------------------
@@ -191,12 +587,13 @@ void Renderer::Init()
 		//lights.push_back(new PointLight(float3(static_cast<float>(i) / 10, 0.7f, 0.6f), float3(1, 0, 0)));
 	}
 
-	texture = new Surface("assets/earthmap.jpg");
+	texture = new Surface("assets/texture.jpg");
 	skydome = new Surface("assets/skydome2_4K.hdr");
+	skydome2 = new Surface("assets/rogland_clear_night_2k.hdr");
 
 	//lights.push_back(new SpotLight(float3(0.5f, 0.1f, 1.0f), float3(0, -1, 0), float3(1, 1, 1), 10, 13));
 
-	areaLights.push_back(new QuadLight(float3(0.033f - 0.025f, 0.093f, 0.124f - 0.025f), float3(0.05f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.05f), float3(1, 1, 1)));
+	SetupScenes(13);
 }
 
 // -----------------------------------------------------------
@@ -207,49 +604,412 @@ static int spp = 1;
 
 void Renderer::Tick(float deltaTime)
 {
-	audio.Play();
-	if (playCameraAnimation)
+	if (playDemo)
 	{
-		float cameraDuration = 8.0f;
-		cameraTime += (deltaTime / 1000.0f);
-		float time = cameraTime / cameraDuration;
+		audio.Play();
+		demoTime += deltaTime * 0.001f;
 
-		if (time > 1.0f)
+		static const float sceneChangesForBlackFade[] = { 26.5f, 48.0f, 69.0f, 93.0f, 120.0f, 114.0f, 125.0f, 130.5f, 136.0f, 141.0f, 146.0f, 151.0f, 157.0f };
+
+		const float fadeDuration = 0.75f;
+		fadeFactor = 1.0f;
+		for (float sceneChange : sceneChangesForBlackFade)
 		{
-			cameraTime = 0.0f;
+			float distance = fabsf(demoTime - sceneChange);
+			if (distance < fadeDuration)
+			{
+				fadeFactor = min(fadeFactor, distance / fadeDuration);
+			}
 		}
 
-		const int pointsCount = 4;
-
-		float3 cameraPoints[4] =
+		if (demoTime < 26.5f)
 		{
-			float3(0.5f + 1.2f, 0.5f, 0.5f),
-			float3(0.5f, 0.5f, 0.5f + 1.2f),
-			float3(0.5f - 1.2f, 0.5f, 0.5f),
-			float3(0.5f, 0.5f, 0.5f - 1.2f)
-		};
+			if (scene.sceneIndex != 13)
+			{
+				scene.~Scene();
+				new (&scene) Scene(13);
+				SetupScenes(13);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 48.0f)
+		{
+			if (scene.sceneIndex != 12)
+			{
+				scene.~Scene();
+				new (&scene) Scene(12);
+				SetupScenes(12);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 53.5f)
+		{
+			if (scene.sceneIndex != 15)
+			{
+				scene.~Scene();
+				new (&scene) Scene(15);
+				SetupScenes(15);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 59.0f)
+		{
+			if (scene.sceneIndex != 16)
+			{
+				scene.~Scene();
+				new (&scene) Scene(16);
+				SetupScenes(16);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 64.0f)
+		{
+			if (scene.sceneIndex != 17)
+			{
+				scene.~Scene();
+				new (&scene) Scene(17);
+				SetupScenes(17);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 69.0f)
+		{
+			if (scene.sceneIndex != 18)
+			{
+				scene.~Scene();
+				new (&scene) Scene(18);
+				SetupScenes(18);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 93.0f)
+		{
+			if (scene.sceneIndex != 14)
+			{
+				scene.~Scene();
+				new (&scene) Scene(14);
+				SetupScenes(14);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 99.0f)
+		{
+			if (scene.sceneIndex != 20)
+			{
+				scene.~Scene();
+				new (&scene) Scene(20);
+				SetupScenes(20);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 104.0f)
+		{
+			if (scene.sceneIndex != 21)
+			{
+				scene.~Scene();
+				new (&scene) Scene(21);
+				SetupScenes(21);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 109.0f)
+		{
+			if (scene.sceneIndex != 22)
+			{
+				scene.~Scene();
+				new (&scene) Scene(22);
+				SetupScenes(22);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 114.0f)
+		{
+			if (scene.sceneIndex != 23)
+			{
+				scene.~Scene();
+				new (&scene) Scene(23);
+				SetupScenes(23);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 120.0f)
+		{
+			if (scene.sceneIndex != 24)
+			{
+				scene.~Scene();
+				new (&scene) Scene(24);
+				SetupScenes(24);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 125.0f)
+		{
+			if (scene.sceneIndex != 25)
+			{
+				scene.~Scene();
+				new (&scene) Scene(25);
+				SetupScenes(25);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 130.5f)
+		{
+			if (scene.sceneIndex != 26)
+			{
+				scene.~Scene();
+				new (&scene) Scene(26);
+				SetupScenes(26);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 136.0f)
+		{
+			if (scene.sceneIndex != 27)
+			{
+				scene.~Scene();
+				new (&scene) Scene(27);
+				SetupScenes(27);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 141.0f)
+		{
+			if (scene.sceneIndex != 28)
+			{
+				scene.~Scene();
+				new (&scene) Scene(28);
+				SetupScenes(28);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 146.0f)
+		{
+			if (scene.sceneIndex != 29)
+			{
+				scene.~Scene();
+				new (&scene) Scene(29);
+				SetupScenes(29);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 151.0f)
+		{
+			if (scene.sceneIndex != 30)
+			{
+				scene.~Scene();
+				new (&scene) Scene(30);
+				SetupScenes(30);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else if (demoTime < 157.0f)
+		{
+			if (scene.sceneIndex != 19)
+			{
+				scene.~Scene();
+				new (&scene) Scene(19);
+				SetupScenes(19);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
+		else
+		{
+			if (scene.sceneIndex != 8)
+			{
+				scene.~Scene();
+				new (&scene) Scene(8);
+				SetupScenes(8);
+				animationTime = 0.0f;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+			}
+		}
 
-		int   segment = static_cast<int>(time * pointsCount);
-		float t = time * pointsCount - segment;
-
-		float3 p0 = cameraPoints[(segment - 1 + pointsCount) % pointsCount];
-		float3 p1 = cameraPoints[(segment + pointsCount) % pointsCount];
-		float3 p2 = cameraPoints[(segment + 1 + pointsCount) % pointsCount];
-		float3 p3 = cameraPoints[(segment + 2 + pointsCount) % pointsCount];
-
-		camera.CatmullRomSplines(p0, p1, p2, p3, t);
-		changedSetting = true;
+		if (demoTime > 32.0f && demoTime < 37.5f)
+		{
+			camera.cameraMode = CAMERAMODE::FISHEYE;
+		}
+		else if (demoTime > 37.5f && demoTime < 43.0f)
+		{
+			camera.cameraMode = CAMERAMODE::PANINI;
+		}
+		else
+		{
+			camera.cameraMode = CAMERAMODE::PINHOLE;
+		}
 	}
 
-	if (playObjectAnimation)
-	{
-		for (int i = 0; i < 16; i++)
-		{
-			scene.voxels[i].UpdateSpline(deltaTime / 1000.0f);
 
+	if (scene.sceneIndex == 6)
+	{
+		if (playCameraAnimation || playScene || playDemo)
+		{
+			//float cameraDuration = 8.0f;
+			//cameraTime += (deltaTime / 1000.0f);
+			//float time = cameraTime / cameraDuration;
+
+			//if (time > 1.0f)
+			//{
+			//	cameraTime = 0.0f;
+			//}
+
+			//const int pointsCount = 4;
+
+			//float3 cameraPoints[4] =
+			//{
+			//	float3(0.5f + 1.2f, 0.5f, 0.5f),
+			//	float3(0.5f, 0.5f, 0.5f + 1.2f),
+			//	float3(0.5f - 1.2f, 0.5f, 0.5f),
+			//	float3(0.5f, 0.5f, 0.5f - 1.2f)
+			//};
+
+			//int   segment = static_cast<int>(time * pointsCount);
+			//float t = time * pointsCount - segment;
+
+			//float3 p0 = cameraPoints[(segment - 1 + pointsCount) % pointsCount];
+			//float3 p1 = cameraPoints[(segment + pointsCount) % pointsCount];
+			//float3 p2 = cameraPoints[(segment + 1 + pointsCount) % pointsCount];
+			//float3 p3 = cameraPoints[(segment + 2 + pointsCount) % pointsCount];
+
+			//camera.CatmullRomSplines(p0, p1, p2, p3, t);
+			//changedSetting = true;
 		}
-		scene.tlas->Build();
-		changedSetting = true;
+	}
+
+	if (scene.sceneIndex == 8)
+	{
+		if (playObjectAnimation || playScene || playDemo)
+		{
+			float3 spherePos = scene.spheres[0].center;
+			camera.UpdateSpline(deltaTime / 1000.0f, spherePos);
+			if (!physics)
+			{
+				physics = true;
+			}
+			changedSetting = true;
+		}
+	}
+
+	if (scene.sceneIndex == 12)
+	{
+		if (playObjectAnimation || playScene || playDemo)
+		{
+			animationTime += deltaTime * 0.001f;
+			float rotationSpeed = animationTime * 0.25f;
+			scene.voxels[0].SetTransform(mat4::Translate(float3(0.0f, 0.0f, 0.0f)) *
+				mat4::Rotate(normalize(float3(1, 1, 1)), rotationSpeed) *
+				mat4::Scale(scene.voxels[0].gridScale));
+			scene.tlas->Build();
+
+			scene.UpdateSphereSpline(deltaTime * 0.001f);
+			scene.bvh->BuildBVH(scene);
+
+			changedSetting = true;
+		}
+
+		if (playCameraAnimation || playScene || playDemo)
+		{
+			float3 cubePos = float3(8 / 512.0f, 8 / 512.0f, 8 / 512.0f);
+			camera.UpdateSpline(deltaTime * 0.001f, cubePos);
+			changedSetting = true;
+		}
+	}
+
+	if (scene.sceneIndex == 13)
+	{
+		if (playObjectAnimation || playScene || playDemo)
+		{
+			animationTime += deltaTime * 0.001f;
+			float rotationSpeed = animationTime * 0.25f;
+			float translationTime = animationTime * 0.005f / 4;
+			scene.voxels[1].SetTransform(mat4::Translate(float3(0.0075f, 0.01f, 0.005f + translationTime)) *
+				mat4::Rotate(normalize(float3(1, 1, 1)), rotationSpeed) *
+				mat4::Scale(scene.voxels[1].gridScale));
+
+			scene.tlas->Build();
+			changedSetting = true;
+		}
+		if (playCameraAnimation || playScene || playDemo)
+		{
+			float3 cubePos = float3(0.0075f, 0.01f, 0.005f + animationTime / 4 * 0.005f);
+			camera.UpdateSpline(deltaTime * 0.001f, cubePos);
+			changedSetting = true;
+		}
+	}
+
+	if (scene.sceneIndex == 14)
+	{
+		if (playObjectAnimation || playScene || playDemo)
+		{
+			scene.UpdateSphereSpline(deltaTime * 0.001f);
+			scene.bvh->BuildBVH(scene);
+			changedSetting = true;
+		}
+
+		if (playCameraAnimation || playScene || playDemo)
+		{
+			camera.UpdateSpline(deltaTime * 0.001f, float3(0.2f, 0, -1));
+			changedSetting = true;
+		}
+	}
+
+	if (scene.sceneIndex == 15 || scene.sceneIndex == 16 || scene.sceneIndex == 17 || scene.sceneIndex == 18 || scene.sceneIndex == 19 || scene.sceneIndex == 20 || scene.sceneIndex == 21 || scene.sceneIndex == 22 ||
+		scene.sceneIndex == 23 || scene.sceneIndex == 25 || scene.sceneIndex == 26 || scene.sceneIndex == 27 || scene.sceneIndex == 28 || scene.sceneIndex == 29 ||
+		scene.sceneIndex == 30)
+	{
+		if (playCameraAnimation || playScene || playDemo)
+		{
+			float3 cubePos = float3(32.0f / 512, 5.0f / 512, 32.0f / 512);
+			camera.UpdateSpline(deltaTime / 1000.0f, cubePos);
+			changedSetting = true;
+		}
+	}
+
+	if (scene.sceneIndex == 24)
+	{
+		if (playCameraAnimation || playScene || playDemo)
+		{
+			float3 cubePos = float3(32.0f / 512, 5.0f / 512, 50.0f / 512);
+			camera.UpdateSpline(deltaTime / 1000.0f, cubePos);
+		}
 	}
 
 
@@ -298,7 +1058,7 @@ void Renderer::Tick(float deltaTime)
 		{
 			Ray r = camera.GetPrimaryRay(x + RandomFloat(), y + RandomFloat());
 			accumulator[x + y * SCRWIDTH] += Trace(r);
-			float3 average = accumulator[x + y * SCRWIDTH] * scale;
+			float3 average = accumulator[x + y * SCRWIDTH] * scale * fadeFactor;
 			screen->pixels[x + y * SCRWIDTH] = RGBF32_to_RGB8(average);
 		}
 	}
@@ -317,6 +1077,13 @@ void Renderer::Tick(float deltaTime)
 	{
 		spp = 1;
 		memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+	}
+
+	if (demoTime > 0.0f && demoTime < 10.0f)
+	{
+		char pointsmsg[256];
+		snprintf(pointsmsg, 256, "TAKE ONE");
+		screen->PrintScaled(pointsmsg, 250, 100, 5, 5, 0xffffff);
 	}
 }
 
@@ -352,6 +1119,8 @@ void Renderer::UI()
 			changedSetting |= ImGui::Checkbox("physics", &physics);
 			changedSetting |= ImGui::Checkbox("play camera animation", &playCameraAnimation);
 			changedSetting |= ImGui::Checkbox("play object animation", &playObjectAnimation);
+			changedSetting |= ImGui::Checkbox("play scene", &playScene);
+			changedSetting |= ImGui::Checkbox("play demo", &playDemo);
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
@@ -365,6 +1134,7 @@ void Renderer::UI()
 			{
 				scene.~Scene();
 				new (&scene) Scene(13);
+				SetupScenes(13);
 				playObjectAnimation = false;
 				spp = 1;
 				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
@@ -375,6 +1145,17 @@ void Renderer::UI()
 			{
 				scene.~Scene();
 				new (&scene) Scene(12);
+				SetupScenes(12);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			if (ImGui::Button("sphere heart"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(14);
+				SetupScenes(14);
 				playObjectAnimation = false;
 				spp = 1;
 				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
@@ -385,11 +1166,191 @@ void Renderer::UI()
 			{
 				scene.~Scene();
 				new (&scene) Scene(6);
+				SetupScenes(6);
 				playObjectAnimation = false;
 				spp = 1;
 				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
 				changedSetting = true;
 			}
+			if (ImGui::Button("showcase 1"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(15);
+				SetupScenes(15);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("showcase 2"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(16);
+				SetupScenes(16);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			if (ImGui::Button("showcase 3"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(17);
+				SetupScenes(17);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("showcase 4"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(18);
+				SetupScenes(18);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			if (ImGui::Button("showcase 5"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(19);
+				SetupScenes(19);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("showcase 6"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(20);
+				SetupScenes(20);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			if (ImGui::Button("showcase 7"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(21);
+				SetupScenes(21);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("showcase 8"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(22);
+				SetupScenes(22);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			if (ImGui::Button("showcase 9"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(23);
+				SetupScenes(23);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("showcase 10"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(24);
+				SetupScenes(24);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			if (ImGui::Button("showcase 11"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(25);
+				SetupScenes(25);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("showcase 12"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(26);
+				SetupScenes(26);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			if (ImGui::Button("showcase 13"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(27);
+				SetupScenes(27);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("showcase 14"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(28);
+				SetupScenes(28);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			if (ImGui::Button("showcase 15"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(29);
+				SetupScenes(29);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("showcase 16"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(30);
+				SetupScenes(30);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+			if (ImGui::Button("physics"))
+			{
+				scene.~Scene();
+				new (&scene) Scene(8);
+				SetupScenes(8);
+				playObjectAnimation = false;
+				spp = 1;
+				memset(accumulator, 0, SCRWIDTH * SCRHEIGHT * sizeof(float3));
+				changedSetting = true;
+			}
+
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();

@@ -8,6 +8,7 @@
 
 Scene::Scene(int sceneIndex)
 {
+	this->sceneIndex = sceneIndex;
 	switch (sceneIndex)
 	{
 	case 1:
@@ -248,21 +249,22 @@ Scene::Scene(int sceneIndex)
 
 		//tlas = new TLAS(voxels, voxelCount);
 		//tlas->Build();
-		bvh = new BVH();
-		bvh->BuildBVH(*this);
 		break;
 	}
 	case 7:
 	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(256);
 		// initialize the scene using Perlin noise, parallel over z
 #pragma omp parallel for schedule(dynamic)
-		for (int z = 0; z < WORLDSIZE; z++)
+		for (int z = 0; z < 256; z++)
 		{
-			const float fz = (float)z / WORLDSIZE;
-			for (int y = 0; y < WORLDSIZE; y++)
+			const float fz = (float)z / 256;
+			for (int y = 0; y < 256; y++)
 			{
-				float fx = 0, fy = (float)y / WORLDSIZE;
-				for (int x = 0; x < WORLDSIZE; x++, fx += 1.0f / WORLDSIZE)
+				float fx = 0, fy = (float)y / 256;
+				for (int x = 0; x < 256; x++, fx += 1.0f / 256)
 				{
 					const float n = noise3D(fx, fy, fz);
 					uint8_t r = static_cast<uint8_t>(std::min(2 * y, 255));
@@ -270,14 +272,22 @@ Scene::Scene(int sceneIndex)
 					uint8_t b = static_cast<uint8_t>(std::min(1 * y, 255));
 
 					uint32_t c = (r << 16) | (g << 8) | b;
-					voxels->Set(x, y, z, n > 0.09f ? c : 0);
+					voxels[0].Set(x, y, z, n > 0.09f ? c : 0);
 				}
 			}
 		}
+		voxels[0].SetTransform(mat4::Identity());
+		voxels[0].BuildBrickGrid();
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
 		break;
 	}
 	case 8:
 	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(512);
 		const int stepCount = 30;
 		const int stepHeight = 1;
 		const int stepDepth = 10;
@@ -300,7 +310,7 @@ Scene::Scene(int sceneIndex)
 			for (int y = yStart; y < yStart + stepHeight; y++)
 				for (int z = zStart; z < zStart + stepDepth; z++)
 					for (int x = baseX; x < baseX + stepWidth; x++)
-						voxels->Set(x, y, z, stepColor);
+						voxels[0].Set(x, y, z, stepColor);
 		}
 
 		float3 ballCenter;
@@ -308,15 +318,7 @@ Scene::Scene(int sceneIndex)
 		ballCenter.y = stepCount * stepHeight + 10;
 		ballCenter.z = baseZ + stepCount * stepDepth - 10;
 
-		float ballRadius = 12.0f;
-
-		uint ballColor =
-			(0x00 << 24) |
-			(255 << 16) |
-			(80 << 8) |
-			80;
-
-		SetSphere(ballCenter, ballRadius, ballColor);
+		SetSphere(ballCenter, 12.0f, 0x843a99);
 
 		uint wallColor =
 			(0x00 << 24) |
@@ -330,17 +332,20 @@ Scene::Scene(int sceneIndex)
 		for (int y = wallY; y < wallY + 40; y++)
 			for (int z = wallZ; z < wallZ + 5; z++)
 				for (int x = baseX; x < baseX + stepWidth; x++)
-					voxels->Set(x, y, z, wallColor);
+					voxels[0].Set(x, y, z, wallColor);
 
 		for (int y = 0; y < wallY + 40; y++)
 			for (int z = baseZ; z < wallZ; z++)
 				for (int x = baseX - 2; x < baseX; x++)
-					voxels->Set(x, y, z, wallColor);
+					voxels[0].Set(x, y, z, wallColor);
 
 		for (int y = 0; y < wallY + 40; y++)
 			for (int z = baseZ; z < wallZ; z++)
 				for (int x = baseX + stepWidth; x < baseX + stepWidth + 2; x++)
-					voxels->Set(x, y, z, wallColor);
+					voxels[0].Set(x, y, z, wallColor);
+		voxels[0].BuildBrickGrid();
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
 
 		break;
 	}
@@ -462,71 +467,64 @@ Scene::Scene(int sceneIndex)
 	}
 	case 12:
 	{
-		voxelCount = 17;
+		voxelCount = 1;
 		voxels = new Voxel[voxelCount];
 
-		voxels[16].Resize(128);
-		for (int z = 0; z < 128; z++)
+		float3 blockSize = float3(16, 16, 16);
+
+		voxels[0].Resize(16);
+		voxels[0].SetTransform(mat4::Scale(voxels[0].gridScale));
+
+
+		for (int z = 0; z < blockSize.z; z++)
 		{
-			for (int y = 0; y < 50; y++)
+			for (int y = 0; y < blockSize.y; y++)
 			{
-				for (int x = 0; x < 128; x++)
+				for (int x = 0; x < blockSize.x; x++)
 				{
-					if (z < 2 || x < 2 || z > 126 || x > 126)
-					{
-						voxels[16].Set(x, y, z, 0x01ffffff);
-					}
+					voxels[0].Set(x, y, z, 0x06570000);
 				}
 			}
 		}
-		voxels[16].BuildBrickGrid();
-		voxels[16].SetTransform(mat4::Scale(voxels[16].gridScale));
 
-		//SetSphere(float3(80, 180, 80), 10, 0x0100ff00);
+		voxels[0].BuildBrickGrid();
 
-		float3 blockSize = float3(32, 8, 32);
-
-		for (int i = 0; i < 16; i++)
-		{
-			voxels[i].Resize(32);
-			for (int z = 0; z < blockSize.z; z++)
-			{
-				for (int y = 0; y < blockSize.y; y++)
-				{
-					for (int x = 0; x < blockSize.x; x++)
-					{
-						voxels[i].Set(x, y, z, 0x543270);
-					}
-				}
-			}
-			voxels[i].BuildBrickGrid();
-		}
-
-		//for (int y = 0; y < 5; y++)
-		//{
-		//	for (int x = 0; x < 5; x++)
+		//voxels[1].Resize(512);
+		//	for (int z = 0; z < 512; z++)
 		//	{
-		//		int floorObjectIndex = y * 5 + x;
-		//		voxels[floorObjectIndex].SetTransform(mat4::Translate(float3(static_cast<float>(x) * 32.0f / WORLDSIZE,
-		//			0.0f, static_cast<float>(y) * 32.0f / WORLDSIZE)) * mat4::Scale(voxels[floorObjectIndex].gridScale));
-
+		//		for (int y = 0; y < 512; y++)
+		//		{
+		//			for (int x = 0; x < 512; x++)
+		//			{
+		//				if (x < 2 || x > 509 || z > 509 || y < 2 || y > 509 || z < 2)
+		//				{
+		//					voxels[1].Set(x, y, z, 0x06ff0000);
+		//				}
+		//			}
+		//		}
 		//	}
-		//}
+		//	voxels[1].BuildBrickGrid();
 
-		for (int z = 0; z < 4; z++)
+
+
+
+		float3 centerCube = float3(8 / 512.0f, 8 / 512.0f, 8 / 512.0f);
+		float r = 20.0f / 512;
+
+		float speeds[4] = { 5.0f, 3.5f, 7.0f, 4.5f };
+		float radius[4] = { 25.0f, 35.0f, 43.0f, 50.0f };
+		uint materials[4] = { 0x06ffffff, 0x01aaaaaa, 0x02ffffff, 0x04ff8844 };
+
+		for (int i = 0; i < 4; i++)
 		{
-			for (int x = 0; x < 4; x++)
-			{
-				int index = z * 4 + x;
-				float3 A = float3(static_cast<float>(x) * blockSize.x / WORLDSIZE, 0.0f, static_cast<float>(z) * blockSize.z / WORLDSIZE);
-				float3 B = float3(static_cast<float>(x) * blockSize.x / WORLDSIZE, 0.03f, static_cast<float>(z) * blockSize.z / WORLDSIZE);
-
-				voxels[index].AddSplineSegment(B, A, B, A, 5.0f);
-				voxels[index].AddSplineSegment(A, B, A, B, 5.0f);
-				voxels[index].splineTime = static_cast<float>(x + z) * 0.4f;
-
-				voxels[index].SetTransform(mat4::Translate(A) * mat4::Scale(voxels[index].gridScale));
-			}
+			float r = radius[i] / 512.0f;
+			float3 center = centerCube;
+			SetSphere(float3(80, 180, 80), 3, materials[i]);
+			int idx = spheres.size() - 1;
+			AddSplineSegment(idx, center + float3(0, 0, -r), center + float3(r, 0, 0), center + float3(0, 0, r), center + float3(-r, 0, 0), speeds[i]);
+			AddSplineSegment(idx, center + float3(r, 0, 0), center + float3(0, 0, r), center + float3(-r, 0, 0), center + float3(0, 0, -r), speeds[i]);
+			AddSplineSegment(idx, center + float3(0, 0, r), center + float3(-r, 0, 0), center + float3(0, 0, -r), center + float3(r, 0, 0), speeds[i]);
+			AddSplineSegment(idx, center + float3(-r, 0, 0), center + float3(0, 0, -r), center + float3(r, 0, 0), center + float3(0, 0, r), speeds[i]);
 		}
 
 		tlas = new TLAS(voxels, voxelCount);
@@ -535,18 +533,18 @@ Scene::Scene(int sceneIndex)
 	}
 	case 13:
 	{
-		voxelCount = 1;
+		voxelCount = 2;
 		voxels = new Voxel[voxelCount];
-		voxels[0].Resize(128);
-		for (int z = 0; z < 128; z++)
+		voxels[0].Resize(32);
+		for (int z = 0; z < 32; z++)
 		{
-			for (int y = 0; y < 128; y++)
+			for (int y = 0; y < 32; y++)
 			{
-				for (int x = 0; x < 128; x++)
+				for (int x = 0; x < 32; x++)
 				{
-					if ((x < 2 || (x > 32 && x < 35)) && y < 53 || 
-						(y < 2 || (y > 50 && y < 53)) && x < 35 || 
-						(z < 2 || z > 125) && x < 35 && y < 53)
+					if ((x < 1 || (x > 8 && x < 10)) && y < 14 ||
+						(y < 1 || (y > 12 && y < 14)) && x < 10 ||
+						(z < 1 || z > 30) && x < 10 && y < 14)
 					{
 						voxels[0].Set(x, y, z, 0xff00ff);
 					}
@@ -554,14 +552,390 @@ Scene::Scene(int sceneIndex)
 			}
 		}
 
-		for (int z = 51; z < 77; z++)
+		int lightPositions[] = { 2, 15, 27 };
+		for (int lights : lightPositions)
 		{
-			for (int x = 4; x < 30; x++)
+			for (int z = lights; z < lights + 2; z++)
 			{
-				voxels[0].Set(x, 49, z, 0x06ffffff);
+				for (int x = 2; x < 8; x++)
+				{
+					voxels[0].Set(x, 12, z, 0x06ffffff);
+				}
 			}
 		}
 		voxels[0].BuildBrickGrid();
+
+		voxels[1].Resize(16);
+		for (int z = 0; z < 2; z++)
+		{
+			for (int y = 0; y < 2; y++)
+			{
+				for (int x = 0; x < 2; x++)
+				{
+					voxels[1].Set(x, y, z, 0x06ffffff);
+				}
+			}
+		}
+		voxels[1].SetTransform(mat4::Translate(float3(0.0075f, 0.01f, 0.005f)) * mat4::Scale(voxels[1].gridScale));
+		voxels[1].BuildBrickGrid();
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 14:
+	{
+		voxelCount = 0;
+		voxels = nullptr;
+		tlas = nullptr;
+		const int sphereCount = 1500;
+		int placed = 0;
+
+		const int curveSamples = 100;
+		float heartX[curveSamples];
+		float heartY[curveSamples];
+		for (int i = 0; i < curveSamples; i++)
+		{
+			float t = static_cast<float>(i) / curveSamples * 2.0f * PI;
+			heartX[i] = 16.0f * sinf(t) * sinf(t) * sinf(t);
+			heartY[i] = 13.0f * cosf(t) - 5.0f * cosf(2 * t) - 2.0f * cosf(3 * t) - cosf(4 * t);
+		}
+
+		do
+		{
+			float x = (rand() % 1000) / 1000.0f * 36.0f - 18.0f;
+			float y = (rand() % 1000) / 1000.0f * 34.0f - 18.0f;
+
+			int crossings = 0;
+			for (int i = 0; i < curveSamples; i++)
+			{
+				int j = (i + 1) % curveSamples;
+				float ix = heartX[i];
+				float iy = heartY[i];
+				float jx = heartX[j];
+				float jy = heartY[j];
+				if (((iy > y) != (jy > y)) && (x < (jx - ix) * (y - iy) / (jy - iy) + ix))
+				{
+					crossings++;
+				}
+			}
+
+			if (crossings % 2 == 1)
+			{
+				float3 heartPos(256.0f + x * 12.0f, 256.0f + y * 12.0f, 256.0f + rand() % 100);
+				float3 randomPos(100.0f + rand() % 512, 100.0f + rand() % 512, 100.0f + rand() % 512);
+
+				float radius = 2.0f + rand() % 3;
+
+				float3 heartPosWorld = heartPos / 512.0f;
+				float3 randomPosWorld = randomPos / 512.0f;
+
+				SetSphere(randomPos, radius, 0x01ffffff);
+
+				int idx = spheres.size() - 1;
+				float3 offset = float3(0.001f, 0.001f, 0.001f);
+				AddSplineSegment(idx, randomPosWorld - offset, randomPosWorld, heartPosWorld, heartPosWorld + offset, 24.0f);
+
+				placed++;
+			}
+
+		} while (placed < sphereCount);
+
+		break;
+	}
+	case 15:
+	case 16:
+	case 17:
+	case 18:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(64);
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)) * mat4::Scale(voxels[0].gridScale));
+#pragma omp parallel for schedule(dynamic)
+		for (int z = 0; z < 64; z++)
+		{
+			for (int y = 0; y < 64; y++)
+			{
+				for (int x = 0; x < 64; x++)
+				{
+					if ((x > 62 && y < 32) || y < 2)
+					{
+						voxels[0].Set(x, y, z, x == 63 ? 0x01eeeeee : 0xeeeeee);
+					}
+
+					if (x >= 28 && x < 36 && y >= 2 && y < 10 && z >= 28 && z < 36)
+					{
+						voxels[0].Set(x, y, z, 0x0200ff00);
+					}
+				}
+			}
+		}
+		voxels[0].BuildBrickGrid();
+
+		SetSphere(float3(32, 7, 50), 5.0f, 0xdebdff);
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 19:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(64);
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)) * mat4::Scale(voxels[0].gridScale));
+#pragma omp parallel for schedule(dynamic)
+		for (int z = 0; z < 64; z++)
+		{
+			for (int y = 0; y < 64; y++)
+			{
+				for (int x = 0; x < 64; x++)
+				{
+					if ((x > 62 && y < 32) || y < 2)
+					{
+						voxels[0].Set(x, y, z, x == 63 ? 0x01eeeeee : 0xeeeeee);
+					}
+
+					if (x >= 28 && x < 36 && y >= 2 && y < 10 && z >= 28 && z < 36)
+					{
+						voxels[0].Set(x, y, z, 0x03ff0000);
+					}
+				}
+			}
+		}
+		SetSphere(float3(32, 7, 50), 5.0f, 0xdebdff);
+		voxels[0].BuildBrickGrid();
+
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 20:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(64);
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)) * mat4::Scale(voxels[0].gridScale));
+#pragma omp parallel for schedule(dynamic)
+		for (int z = 0; z < 64; z++)
+		{
+			for (int y = 0; y < 64; y++)
+			{
+				for (int x = 0; x < 64; x++)
+				{
+					if (y < 2)
+					{
+						voxels[0].Set(x, y, z, 0xeeeeee);
+					}
+
+					if (x >= 28 && x < 36 && y >= 2 && y < 10 && z >= 28 && z < 36)
+					{
+						voxels[0].Set(x, y, z, 0xffffff);
+					}
+				}
+			}
+		}
+		SetSphere(float3(32, 50, 100), 1.0f, 0x06ff0000);
+		SetSphere(float3(-32, 50, -32), 1.0f, 0x0600ff00);
+		SetSphere(float3(100, 50, 0), 1.0f, 0x060000ff);
+		voxels[0].BuildBrickGrid();
+
+		//SetSphere(float3(32, 5, 32), 5.0f, 0x04debdff);
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 21:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(64);
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)) * mat4::Scale(voxels[0].gridScale));
+#pragma omp parallel for schedule(dynamic)
+		for (int z = 0; z < 64; z++)
+		{
+			for (int y = 0; y < 64; y++)
+			{
+				for (int x = 0; x < 64; x++)
+				{
+					if (y < 2)
+					{
+						voxels[0].Set(x, y, z, 0xeeeeee);
+					}
+
+					if (x >= 28 && x < 36 && y >= 2 && y < 10 && z >= 28 && z < 36)
+					{
+						voxels[0].Set(x, y, z, 0xffffff);
+					}
+				}
+			}
+		}
+		voxels[0].BuildBrickGrid();
+
+		SetSphere(float3(32, 50, 32), 1, 0x06ffffff);
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 22:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(64);
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)) * mat4::Scale(voxels[0].gridScale));
+#pragma omp parallel for schedule(dynamic)
+		for (int z = 0; z < 64; z++)
+		{
+			for (int y = 0; y < 64; y++)
+			{
+				for (int x = 0; x < 64; x++)
+				{
+					if (y < 2)
+					{
+						voxels[0].Set(x, y, z, 0xeeeeee);
+					}
+
+					if (x >= 28 && x < 36 && y >= 2 && y < 10 && z >= 28 && z < 36)
+					{
+						voxels[0].Set(x, y, z, 0xffffff);
+					}
+				}
+			}
+		}
+		SetSphere(float3(32, 50, 50), 1, 0x06ffffff);
+		voxels[0].BuildBrickGrid();
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 23:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(64);
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)) * mat4::Scale(voxels[0].gridScale));
+#pragma omp parallel for schedule(dynamic)
+		for (int z = 0; z < 64; z++)
+		{
+			for (int y = 0; y < 64; y++)
+			{
+				for (int x = 0; x < 64; x++)
+				{
+					if (y < 2)
+					{
+						voxels[0].Set(x, y, z, 0xeeeeee);
+					}
+
+					if (x >= 28 && x < 36 && y >= 2 && y < 10 && z >= 28 && z < 36)
+					{
+						voxels[0].Set(x, y, z, 0xffffff);
+					}
+				}
+			}
+		}
+		SetSphere(float3(32, 50, 50), 1, 0x06ff0000);
+		voxels[0].BuildBrickGrid();
+
+		//SetSphere(float3(32, 5, 32), 5.0f, 0x04debdff);
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 24:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(64);
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)) * mat4::Scale(voxels[0].gridScale));
+#pragma omp parallel for schedule(dynamic)
+		for (int z = 0; z < 64; z++)
+		{
+			for (int y = 0; y < 64; y++)
+			{
+				for (int x = 0; x < 64; x++)
+				{
+					if ((x > 62 && y < 20) || y < 2)
+					{
+						voxels[0].Set(x, y, z, x == 63 ? 0x01eeeeee : 0xeeeeee);
+					}
+
+				}
+			}
+		}
+		voxels[0].BuildBrickGrid();
+
+		int sphereCount = 7;
+		float radius = 3.0f;
+		float spacing = 2.0f;
+		float sphereRowWidth = static_cast<float>(sphereCount) * (radius * 2.0f) + static_cast<float>(sphereCount - 1) * spacing;
+		float startX = 32.0f - sphereRowWidth / 2.0f + radius;
+
+		for (int i = 0; i < sphereCount; i++)
+		{
+			float x = startX + static_cast<float>(i) * (radius * 2 + spacing);
+			SetSphere(float3(x, 2 + radius, 32), radius, 0x940101);
+		}
+
+		tlas = new TLAS(voxels, voxelCount);
+		tlas->Build();
+		break;
+	}
+	case 25:
+	case 26:
+	case 27:
+	case 28:
+	case 29:
+	case 30:
+	{
+		voxelCount = 1;
+		voxels = new Voxel[voxelCount];
+		voxels[0].Resize(64);
+		voxels[0].SetTransform(mat4::Translate(float3(0, 0, 0)) * mat4::Scale(voxels[0].gridScale));
+#pragma omp parallel for schedule(dynamic)
+		for (int z = 0; z < 64; z++)
+		{
+			for (int y = 0; y < 64; y++)
+			{
+				for (int x = 0; x < 64; x++)
+				{
+					if (y < 2)
+					{
+						voxels[0].Set(x, y, z, 0xeeeeee);
+					}
+
+					if (x >= 15 && x < 20 && y >= 2 && y < 7 && z >= 30 && z < 35)
+					{
+						//voxels[0].Set(x, y, z, 0x0500ff00);
+					}
+				}
+			}
+		}
+		voxels[0].BuildBrickGrid();
+
+		SetSphere(float3(32, 7, 32), 5.0f, 0x04ff4fed);
+
+		for (int i = 0; i < 100; i++)
+		{
+			float3 randomPos(-100.0f + rand() % 256, -50.0f + rand() % 256, -100.0f + rand() % 256);
+
+			float radius = 6.0f + rand() % 3;
+
+			//float3 randomPosWorld = randomPos / 512.0f;
+
+			uint color =
+				(0x06 << 24) |
+				((rand() % 256) << 16) |
+				((rand() % 256) << 8) |
+				(rand() % 256);
+
+			SetSphere(randomPos, radius, color);
+		}
 
 		tlas = new TLAS(voxels, voxelCount);
 		tlas->Build();
@@ -593,8 +967,71 @@ void Scene::SetSphere(float3 center, float radius, uint material)
 	spheres.push_back(s);
 }
 
+void Scene::AddSplineSegment(int sphereIndex, float3 p0, float3 p1, float3 p2, float3 p3, float duration)
+{
+	float alpha = 0.5f;
+	float tension = 0.0f;
 
-void Scene::FindNearest(Ray& ray, bool skipBVH) const
+	float t01 = pow(length(p1 - p0), alpha);
+	float t12 = pow(length(p2 - p1), alpha);
+	float t23 = pow(length(p3 - p2), alpha);
+
+	float3 m1 = (1.0f - tension) *
+		(p2 - p1 + t12 * ((p1 - p0) / t01 - (p2 - p0) / (t01 + t12)));
+	float3 m2 = (1.0f - tension) *
+		(p2 - p1 + t12 * ((p3 - p2) / t23 - (p3 - p1) / (t12 + t23)));
+
+	SEGMENT segment;
+	segment.a = 2.0f * (p1 - p2) + m1 + m2;
+	segment.b = -3.0f * (p1 - p2) - m1 - m1 - m2;
+	segment.c = m1;
+	segment.d = p1;
+	segment.duration = duration;
+	spheres[sphereIndex].splineSegments.push_back(segment);
+}
+
+float3 Scene::EvaluateSpline(Sphere& sphere, float t)
+{
+	for (auto& segment : sphere.splineSegments)
+	{
+		if (t <= segment.duration)
+		{
+			float progress = t / segment.duration;
+			return segment.a * progress * progress * progress + segment.b * progress * progress + segment.c * progress + segment.d;
+		}
+
+		t -= segment.duration;
+	}
+	return sphere.splineSegments.back().d;
+}
+
+void Scene::UpdateSphereSpline(float deltaTime)
+{
+	for (auto& sphere : spheres)
+	{
+		if (sphere.splineSegments.empty())
+		{
+			continue;
+		}
+
+		sphere.splineTime += deltaTime;
+
+		float totalDuration = 0.0f;
+		for (auto& segment : sphere.splineSegments)
+		{
+			totalDuration += segment.duration;
+		}
+		if (sphere.splineTime > totalDuration)
+		{
+			sphere.splineTime -= totalDuration;
+		}
+
+		sphere.center = EvaluateSpline(sphere, sphere.splineTime);
+	}
+}
+
+
+void Scene::FindNearest(Ray& ray, bool skipBVH, bool skipTLAS) const
 {
 	// nudge origin
 	ray.O += EPSILON * ray.D;
@@ -631,7 +1068,7 @@ void Scene::FindNearest(Ray& ray, bool skipBVH) const
 	//uint sphereHitAxis = 0;
 	//uint sphereAxis = 0;
 
-	if (tlas)
+	if (tlas && !skipTLAS)
 	{
 		tlas->Intersect(ray);
 	}
@@ -666,22 +1103,23 @@ bool Scene::IsOccluded(Ray& ray) const
 	ray.O += EPSILON * ray.D;
 	ray.t -= EPSILON * 2.0f;
 
-	ray.hitSphere = false;
+	//ray.hitSphere = false;
 
 	//setup shadows for the spheres
 
 	if (bvh && !bvh->bvhNodes.empty())
 	{
 		bvh->IntersectBVH(ray, *this);
-	}
-	if (ray.hitSphere)
-	{
-		return true;
+		if (ray.hitSphere && (ray.voxel >> 24) != 6)
+		{
+			return true;
+		}
 	}
 
-	if (voxels)
+
+	if (tlas)
 	{
-		return voxels->IsOccluded(ray);
+		return tlas->IsOccluded(ray);
 	}
 	return false;
 }
